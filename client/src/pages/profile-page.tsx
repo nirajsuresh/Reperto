@@ -191,8 +191,8 @@ export default function ProfilePage() {
                             <Input id="piece" placeholder="e.g. Piano Concerto No. 3" />
                           </div>
                           <div className="grid gap-2">
-                            <Label htmlFor="movement">Movement</Label>
-                            <Input id="movement" placeholder="e.g. I. Allegro" />
+                            <Label htmlFor="movement">Movement(s)</Label>
+                            <Input id="movement" placeholder="e.g. I. Allegro, II. Adagio" />
                           </div>
                           <div className="grid gap-2">
                             <Label htmlFor="status">Status</Label>
@@ -233,7 +233,7 @@ export default function ProfilePage() {
                             <div className="flex items-center gap-2">Piece <ArrowUpDown className="w-3 h-3" /></div>
                           </TableHead>
                           <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('movement')}>
-                            <div className="flex items-center gap-2">Opus/No. <ArrowUpDown className="w-3 h-3" /></div>
+                            <div className="flex items-center gap-2">Movement(s) <ArrowUpDown className="w-3 h-3" /></div>
                           </TableHead>
                           <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('status')}>
                             <div className="flex items-center gap-2">Status <ArrowUpDown className="w-3 h-3" /></div>
