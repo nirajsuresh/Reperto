@@ -11,6 +11,7 @@ import ProfilePage from "@/pages/profile-page";
 import PieceDetailPage from "@/pages/piece-detail";
 import SearchPage from "@/pages/search-page";
 import UserProfilePage from "@/pages/user-profile";
+import FeedPage from "@/pages/feed-page";
 
 function Router() {
   return (
@@ -19,6 +20,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <Route path="/profile-setup" component={ProfileSetup} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/feed" component={FeedPage} />
       <Route path="/piece/:id" component={PieceDetailPage} />
       <Route path="/search" component={SearchPage} />
       <Route path="/user/:id" component={UserProfilePage} />

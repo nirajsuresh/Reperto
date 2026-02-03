@@ -60,6 +60,18 @@ export function Navbar() {
       <div className="flex items-center gap-6">
         {isLoggedIn ? (
           <>
+            <Link href="/feed">
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "text-base font-medium hover:bg-white/10",
+                  isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
+                )}
+                data-testid="link-home"
+              >
+                Home
+              </Button>
+            </Link>
             <Link href="/profile">
               <Button 
                 variant="ghost" 
@@ -67,6 +79,7 @@ export function Navbar() {
                   "text-base font-medium hover:bg-white/10",
                   isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
                 )}
+                data-testid="link-profile"
               >
                 Profile
               </Button>
@@ -78,6 +91,7 @@ export function Navbar() {
                 "text-base font-medium hover:bg-white/10",
                 isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
               )}
+              data-testid="button-logout"
             >
               Log Out
             </Button>
