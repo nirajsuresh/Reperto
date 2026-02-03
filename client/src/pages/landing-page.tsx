@@ -12,12 +12,12 @@ export default function LandingPage() {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="/hero-classical.png" 
-            alt="Classical Cello in Practice Room" 
+            src="/src/assets/images/hero-piano-studio.png" 
+            alt="Classical Piano in Music Studio" 
             className="w-full h-full object-cover"
           />
-          <div className="absolute inset-0 bg-black/40 mix-blend-multiply" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-black/30 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         </div>
 
         {/* Content */}
