@@ -24,19 +24,13 @@ export function Navbar() {
       isLanding ? "absolute top-0 left-0 bg-transparent text-white" : "bg-background/80 backdrop-blur-md border-b sticky top-0"
     )}>
       <Link href="/">
-        <div className="flex items-center gap-2 cursor-pointer group">
+        <div className="flex items-center cursor-pointer group">
           <img 
-            src="/attached_assets/logo_2_1770077789345.png" 
+            src="/src/assets/images/logo.png" 
             alt="Réperto Logo" 
-            className="h-10 w-auto invert brightness-0 transition-all group-hover:opacity-80"
+            className="h-12 w-auto transition-all group-hover:opacity-80"
             style={{ filter: isLanding ? 'invert(1) brightness(2)' : 'none' }}
           />
-          <span className={cn(
-            "font-serif text-2xl font-bold tracking-tight",
-            isLanding ? "text-white" : "text-primary"
-          )}>
-            Réperto
-          </span>
         </div>
       </Link>
 
