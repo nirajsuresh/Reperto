@@ -42,16 +42,29 @@ export function Navbar() {
 
       <div className="flex items-center gap-6">
         {isLoggedIn ? (
-          <Button 
-            variant="ghost" 
-            onClick={handleLogout}
-            className={cn(
-              "text-base font-medium hover:bg-white/10",
-              isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
-            )}
-          >
-            Log Out
-          </Button>
+          <>
+            <Link href="/profile">
+              <Button 
+                variant="ghost" 
+                className={cn(
+                  "text-base font-medium hover:bg-white/10",
+                  isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
+                )}
+              >
+                Profile
+              </Button>
+            </Link>
+            <Button 
+              variant="ghost" 
+              onClick={handleLogout}
+              className={cn(
+                "text-base font-medium hover:bg-white/10",
+                isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
+              )}
+            >
+              Log Out
+            </Button>
+          </>
         ) : (
           <>
             <Link href="/auth">
