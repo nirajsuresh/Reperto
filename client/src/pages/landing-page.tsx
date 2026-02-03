@@ -26,9 +26,9 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
-            className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight tracking-tight"
+            className="font-serif text-5xl md:text-7xl lg:text-8xl font-bold mb-6 leading-tight tracking-tight text-white"
           >
-            Master Your <br/> <span className="italic text-accent">Repertoire</span>
+            Plan. Practice. Remember.
           </motion.h1>
           
           <motion.p 
@@ -37,8 +37,7 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto font-light leading-relaxed"
           >
-            The essential digital companion for the serious classical musician. 
-            Track your pieces, plan your seasons, and showcase your artistic journey.
+            Build your repertoire and grow with other classical musicians.
           </motion.p>
           
           <motion.div
