@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, serial, integer, date } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, serial, integer, date, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -59,3 +59,72 @@ export const repertoireEntries = pgTable("repertoire_entries", {
 export const insertRepertoireEntrySchema = createInsertSchema(repertoireEntries).omit({ id: true });
 export type InsertRepertoireEntry = z.infer<typeof insertRepertoireEntrySchema>;
 export type RepertoireEntry = typeof repertoireEntries.$inferSelect;
+
+export const follows = pgTable("follows", {
+  id: serial("id").primaryKey(),
+  followerId: varchar("follower_id").notNull().references(() => users.id),
+  followingId: varchar("following_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertFollowSchema = createInsertSchema(follows).omit({ id: true, createdAt: true });
+export type InsertFollow = z.infer<typeof insertFollowSchema>;
+export type Follow = typeof follows.$inferSelect;
+
+export const posts = pgTable("posts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // 'status_change', 'milestone', 'practice_log', 'recording', 'text'
+  content: text("content"),
+  pieceId: integer("piece_id").references(() => pieces.id),
+  recordingUrl: text("recording_url"),
+  practiceHours: integer("practice_hours"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPostSchema = createInsertSchema(posts).omit({ id: true, createdAt: true });
+export type InsertPost = z.infer<typeof insertPostSchema>;
+export type Post = typeof posts.$inferSelect;
+
+export const challenges = pgTable("challenges", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  pieceId: integer("piece_id").references(() => pieces.id),
+  startMeasure: integer("start_measure"),
+  endMeasure: integer("end_measure"),
+  deadline: text("deadline"),
+  createdAt: timestamp("created_at").defaultNow(),
+  isActive: boolean("is_active").default(true),
+});
+
+export const insertChallengeSchema = createInsertSchema(challenges).omit({ id: true, createdAt: true });
+export type InsertChallenge = z.infer<typeof insertChallengeSchema>;
+export type Challenge = typeof challenges.$inferSelect;
+
+export const challengeEntries = pgTable("challenge_entries", {
+  id: serial("id").primaryKey(),
+  challengeId: integer("challenge_id").notNull().references(() => challenges.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  recordingUrl: text("recording_url"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+});
+
+export const insertChallengeEntrySchema = createInsertSchema(challengeEntries).omit({ id: true, submittedAt: true });
+export type InsertChallengeEntry = z.infer<typeof insertChallengeEntrySchema>;
+export type ChallengeEntry = typeof challengeEntries.$inferSelect;
+
+export const userProfiles = pgTable("user_profiles", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  displayName: text("display_name").notNull(),
+  instrument: text("instrument"),
+  level: text("level"),
+  location: text("location"),
+  bio: text("bio"),
+  avatarUrl: text("avatar_url"),
+});
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({ id: true });
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+export type UserProfile = typeof userProfiles.$inferSelect;
