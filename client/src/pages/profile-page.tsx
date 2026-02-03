@@ -4,10 +4,27 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MapPin, Calendar, Plus, MoreHorizontal, Edit2, Music2, TrendingUp } from "lucide-react";
+import { MapPin, Calendar, Plus, MoreHorizontal, Edit2, Music2, TrendingUp, Sparkles } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
+
+const genreData = [
+  { genre: "Baroque", value: 40 },
+  { genre: "Classical", value: 65 },
+  { genre: "Romantic", value: 90 },
+  { genre: "Impressionistic", value: 30 },
+  { genre: "Modern", value: 50 },
+];
+
+const lengthData = [
+  { name: "0-5m", count: 4 },
+  { name: "5-10m", count: 8 },
+  { name: "10-20m", count: 12 },
+  { name: "20-30m", count: 5 },
+  { name: "30m+", count: 2 },
+];
 
 export default function ProfilePage() {
   return (
@@ -36,16 +53,14 @@ export default function ProfilePage() {
             </div>
 
             <div className="pb-4 flex gap-3">
-              <Link href="/insights">
-                <Button variant="outline" className="bg-background/50 backdrop-blur-sm">
-                  <TrendingUp className="w-4 h-4 mr-2" /> Artistic Insights
-                </Button>
-              </Link>
+              <Button variant="outline" className="bg-background/50 backdrop-blur-sm">
+                <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
+              </Button>
               <Button>Connect</Button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 mb-12">
             <div className="space-y-6 lg:col-span-1">
               <Card>
                 <CardHeader>
@@ -93,7 +108,7 @@ export default function ProfilePage() {
                   </TabsList>
                 </div>
 
-                <Card className="border-none shadow-sm overflow-hidden">
+                <Card className="border-none shadow-sm overflow-hidden mb-12">
                   <Table>
                     <TableHeader className="bg-muted/30">
                       <TableRow>
@@ -124,6 +139,80 @@ export default function ProfilePage() {
                     </TableBody>
                   </Table>
                 </Card>
+
+                {/* Integrated Insights */}
+                <div className="space-y-8 pt-8 border-t">
+                  <div className="flex items-center gap-4">
+                    <TrendingUp className="w-6 h-6 text-primary" />
+                    <h2 className="font-serif text-2xl font-bold">Artistic Insights</h2>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <Card className="border-none shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="font-serif text-lg">Genre Representation</CardTitle>
+                      </CardHeader>
+                      <CardContent className="h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={genreData}>
+                            <PolarGrid stroke="#e5e5e5" />
+                            <PolarAngleAxis dataKey="genre" tick={{ fill: "#666", fontSize: 10 }} />
+                            <Radar
+                              name="Repertoire"
+                              dataKey="value"
+                              stroke="hsl(var(--primary))"
+                              fill="hsl(var(--primary))"
+                              fillOpacity={0.4}
+                            />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-none shadow-sm">
+                      <CardHeader>
+                        <CardTitle className="font-serif text-lg">Piece Length Distribution</CardTitle>
+                      </CardHeader>
+                      <CardContent className="h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={lengthData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                            <YAxis tick={{ fontSize: 10 }} />
+                            <Tooltip 
+                              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                            />
+                            <Bar dataKey="count" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="space-y-6">
+                    <h3 className="font-serif text-xl font-bold flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-accent-foreground" />
+                      Rounding Out Your Repertoire
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <SuggestionCard 
+                        composer="Maurice Ravel"
+                        title="Tzigane"
+                        reason="Your repertoire is heavily Romantic. Adding an Impressionistic showpiece would show versatility."
+                      />
+                      <SuggestionCard 
+                        composer="J.S. Bach"
+                        title="Sonata No. 1 in G minor"
+                        reason="Adding a polyphonic Baroque work will balance your current focus on D minor works."
+                      />
+                      <SuggestionCard 
+                        composer="Béla Bartók"
+                        title="Violin Concerto No. 2"
+                        reason="A major 20th-century concerto would elevate your profile."
+                      />
+                    </div>
+                  </div>
+                </div>
               </Tabs>
             </div>
           </div>
@@ -158,5 +247,17 @@ function RepertoireRow({ composer, piece, movement, status, date, id }: { compos
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">{date}</TableCell>
     </TableRow>
+  );
+}
+
+function SuggestionCard({ composer, title, reason }: { composer: string, title: string, reason: string }) {
+  return (
+    <Card className="border-none shadow-sm hover:translate-y-[-4px] transition-transform">
+      <CardContent className="pt-6">
+        <p className="text-xs font-bold uppercase tracking-widest text-accent-foreground mb-1">{composer}</p>
+        <h3 className="font-serif text-lg font-bold mb-2">{title}</h3>
+        <p className="text-xs text-muted-foreground leading-relaxed">{reason}</p>
+      </CardContent>
+    </Card>
   );
 }

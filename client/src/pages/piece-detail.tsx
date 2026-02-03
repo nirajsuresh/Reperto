@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Music2, Calendar, Clock, Link as LinkIcon, Plus, ChevronDown, ChevronUp } from "lucide-react";
+import { Music2, Calendar, Clock, Link as LinkIcon, Plus, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 
 export default function PieceDetailPage() {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -19,6 +20,13 @@ export default function PieceDetailPage() {
     <Layout>
       <div className="min-h-screen bg-background py-12">
         <div className="container mx-auto px-4 max-w-4xl">
+          <Link href="/profile">
+            <Button variant="ghost" size="sm" className="mb-8 group">
+              <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+              Back to Profile
+            </Button>
+          </Link>
+
           <div className="mb-8 flex items-center gap-4">
             <div className="p-3 bg-primary/10 rounded-lg">
               <Music2 className="w-8 h-8 text-primary" />
@@ -30,10 +38,10 @@ export default function PieceDetailPage() {
           </div>
 
           <Card className="mb-8 border-none shadow-sm overflow-hidden">
-            <CardHeader className="bg-muted/30 pb-4">
+            <CardHeader className="bg-muted/30 pb-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg font-serif">Historical Context & Analysis</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setIsExpanded(!isExpanded)}>
+                <Button variant="ghost" size="sm">
                   {isExpanded ? <ChevronUp /> : <ChevronDown />}
                 </Button>
               </div>
