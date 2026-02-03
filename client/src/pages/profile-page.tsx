@@ -88,7 +88,7 @@ export default function ProfilePage() {
         <div className="container mx-auto px-4 -mt-32 relative z-10">
           <div className="flex flex-col md:flex-row items-end gap-6 mb-8">
             <Avatar className="w-40 h-40 border-4 border-background shadow-2xl">
-              <AvatarImage src="/src/assets/images/niraj.png" />
+              <AvatarImage src="/images/niraj.png" />
               <AvatarFallback className="text-4xl font-serif">NS</AvatarFallback>
             </Avatar>
             

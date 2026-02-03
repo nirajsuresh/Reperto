@@ -12,7 +12,7 @@ export default function LandingPage() {
         {/* Background Image with Overlay */}
         <div className="absolute inset-0 z-0">
           <img 
-            src="/src/assets/images/hero-piano-studio.png" 
+            src="/images/hero-piano-studio.png" 
             alt="Classical Piano in Music Studio" 
             className="w-full h-full object-cover"
           />

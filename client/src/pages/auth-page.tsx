@@ -34,7 +34,7 @@ export default function AuthPage() {
       <div className="hidden md:block relative h-full bg-primary overflow-hidden">
         <div className="absolute inset-0">
           <img 
-            src="/src/assets/images/hero-piano-studio.png" 
+            src="/images/hero-piano-studio.png" 
             alt="Piano Studio" 
             className="w-full h-full object-cover opacity-80 mix-blend-overlay"
           />
@@ -43,7 +43,7 @@ export default function AuthPage() {
           <Link href="/">
              <div className="flex items-center cursor-pointer">
               <img 
-                src="/src/assets/images/logo.png" 
+                src="/images/logo.png" 
                 alt="Réperto Logo" 
                 className="h-12 w-auto"
               />
@@ -65,7 +65,7 @@ export default function AuthPage() {
             <Link href="/">
               <div className="flex justify-center">
                 <img 
-                  src="/src/assets/images/logo.png" 
+                  src="/images/logo.png" 
                   alt="Réperto Logo" 
                   className="h-12 w-auto"
                 />
