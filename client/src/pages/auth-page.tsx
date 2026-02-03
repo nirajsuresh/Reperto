@@ -17,12 +17,14 @@ export default function AuthPage() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // Simulate login success
+    localStorage.setItem("isLoggedIn", "true");
     setLocation("/profile");
   };
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     // Simulate register success -> go to setup
+    localStorage.setItem("isLoggedIn", "true");
     setLocation("/profile-setup");
   };
 

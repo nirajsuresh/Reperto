@@ -1,10 +1,22 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
 
 export function Navbar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const isLanding = location === "/";
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    setIsLoggedIn(localStorage.getItem("isLoggedIn") === "true");
+  }, [location]);
+
+  const handleLogout = () => {
+    localStorage.removeItem("isLoggedIn");
+    setIsLoggedIn(false);
+    setLocation("/");
+  };
 
   return (
     <nav className={cn(
@@ -29,24 +41,39 @@ export function Navbar() {
       </Link>
 
       <div className="flex items-center gap-6">
-        <Link href="/auth">
-          <Button variant="ghost" className={cn(
-            "text-base font-medium hover:bg-white/10",
-            isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
-          )}>
-            Log In
+        {isLoggedIn ? (
+          <Button 
+            variant="ghost" 
+            onClick={handleLogout}
+            className={cn(
+              "text-base font-medium hover:bg-white/10",
+              isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
+            )}
+          >
+            Log Out
           </Button>
-        </Link>
-        <Link href="/auth?tab=register">
-          <Button className={cn(
-            "rounded-full px-6 font-medium transition-all shadow-none",
-            isLanding 
-              ? "bg-white text-black hover:bg-white/90" 
-              : "bg-primary text-primary-foreground hover:bg-primary/90"
-          )}>
-            Join Now
-          </Button>
-        </Link>
+        ) : (
+          <>
+            <Link href="/auth">
+              <Button variant="ghost" className={cn(
+                "text-base font-medium hover:bg-white/10",
+                isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
+              )}>
+                Log In
+              </Button>
+            </Link>
+            <Link href="/auth?tab=register">
+              <Button className={cn(
+                "rounded-full px-6 font-medium transition-all shadow-none",
+                isLanding 
+                  ? "bg-white text-black hover:bg-white/90" 
+                  : "bg-primary text-primary-foreground hover:bg-primary/90"
+              )}>
+                Join Now
+              </Button>
+            </Link>
+          </>
+        )}
       </div>
     </nav>
   );
