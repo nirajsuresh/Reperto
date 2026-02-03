@@ -7,6 +7,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MapPin, Calendar, Plus, MoreHorizontal, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger 
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
@@ -123,11 +134,60 @@ export default function ProfilePage() {
                     <Music2 className="w-6 h-6 text-primary" />
                     <h2 className="font-serif text-2xl font-bold">Repertoire</h2>
                   </div>
-                  <TabsList className="bg-background border">
-                    <TabsTrigger value="all">All Pieces</TabsTrigger>
-                    <TabsTrigger value="active">Active</TabsTrigger>
-                    <TabsTrigger value="performance">Ready</TabsTrigger>
-                  </TabsList>
+                  <div className="flex items-center gap-4">
+                    <TabsList className="bg-background border">
+                      <TabsTrigger value="all">All Pieces</TabsTrigger>
+                      <TabsTrigger value="active">Active</TabsTrigger>
+                      <TabsTrigger value="performance">Ready</TabsTrigger>
+                    </TabsList>
+                    
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button size="sm" variant="outline" className="gap-2">
+                          <Plus className="w-4 h-4" /> Add Piece
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle className="font-serif text-2xl">Add New Piece</DialogTitle>
+                          <DialogDescription>
+                            Add a new work to your repertoire tracking.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="composer">Composer</Label>
+                            <Input id="composer" placeholder="e.g. Sergei Rachmaninoff" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="piece">Piece Title</Label>
+                            <Input id="piece" placeholder="e.g. Piano Concerto No. 3" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="opus">Opus / Number</Label>
+                            <Input id="opus" placeholder="e.g. Op. 30" />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="status">Initial Status</Label>
+                            <Select defaultValue="In Progress">
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Wishlist">Wishlist</SelectItem>
+                                <SelectItem value="In Progress">In Progress</SelectItem>
+                                <SelectItem value="Learned">Learned</SelectItem>
+                                <SelectItem value="Performance-ready">Performance-ready</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit">Add to Repertoire</Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
 
                 <div className="space-y-4 mb-12">
