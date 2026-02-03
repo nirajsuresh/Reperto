@@ -6,14 +6,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Music2, Calendar, Clock, Link as LinkIcon, Plus, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
+import { Music2, Calendar, Clock, Link as LinkIcon, Plus, ChevronDown, ChevronUp, ArrowLeft, FileText, Upload, X } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
+import { ObjectUploader } from "@/components/ObjectUploader";
 
 export default function PieceDetailPage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [status, setStatus] = useState("In Progress");
+  const [scoreFile, setScoreFile] = useState<{ name: string; path: string } | null>(null);
   const [notes, setNotes] = useState([
     { id: 1, date: "2024-02-12", time: "2.5", content: "Mastering the polyrhythms in the C section. Focus on left-hand clarity in the descending runs.", media: "https://vimeo.com/..." },
     { id: 2, date: "2024-02-10", time: "3.0", content: "Memory work for the coda. Practicing jump accuracy at tempo.", media: "" }
@@ -69,28 +71,114 @@ export default function PieceDetailPage() {
             </div>
           </div>
 
-          <Card className="mb-8 border-none shadow-sm overflow-hidden">
-            <CardHeader className="bg-muted/30 pb-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-serif">Musical Analysis & Technique</CardTitle>
-                <Button variant="ghost" size="sm">
-                  {isExpanded ? <ChevronUp /> : <ChevronDown />}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-4">
-              <div className={isExpanded ? "" : "line-clamp-3"}>
-                <p className="text-muted-foreground leading-relaxed">
-                  Chopin's Fourth Ballade is widely considered one of the masterpieces of 19th-century piano music. 
-                  Composed in 1842, it represents the peak of his formal and harmonic language. The piece is 
-                  characterized by its complex counterpoint, variation-like structure, and profound emotional depth. 
-                  Technically, it demands extraordinary finger independence, subtle pedaling, and the ability 
-                  to maintain a lyrical line through dense, chromatic textures. The coda remains one of the most 
-                  formidable challenges in the standard repertoire.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="md:col-span-2 border-none shadow-sm overflow-hidden">
+              <CardHeader className="bg-muted/30 pb-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg font-serif">Musical Analysis & Technique</CardTitle>
+                  <Button variant="ghost" size="sm">
+                    {isExpanded ? <ChevronUp /> : <ChevronDown />}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4">
+                <div className={isExpanded ? "" : "line-clamp-3"}>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Chopin's Fourth Ballade is widely considered one of the masterpieces of 19th-century piano music. 
+                    Composed in 1842, it represents the peak of his formal and harmonic language. The piece is 
+                    characterized by its complex counterpoint, variation-like structure, and profound emotional depth. 
+                    Technically, it demands extraordinary finger independence, subtle pedaling, and the ability 
+                    to maintain a lyrical line through dense, chromatic textures. The coda remains one of the most 
+                    formidable challenges in the standard repertoire.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-none shadow-sm overflow-hidden">
+              <CardHeader className="bg-muted/30 pb-4">
+                <CardTitle className="text-lg font-serif flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Score
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-4">
+                {scoreFile ? (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-full aspect-[3/4] bg-muted/50 rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/20">
+                      <div className="text-center p-4">
+                        <FileText className="w-12 h-12 text-primary/60 mx-auto mb-2" />
+                        <p className="text-sm font-medium truncate max-w-[150px]" data-testid="text-score-filename">{scoreFile.name}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 w-full">
+                      <a 
+                        href={scoreFile.path} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="flex-1"
+                      >
+                        <Button variant="outline" size="sm" className="w-full" data-testid="button-view-score">
+                          View PDF
+                        </Button>
+                      </a>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setScoreFile(null)}
+                        data-testid="button-remove-score"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-full aspect-[3/4] bg-muted/30 rounded-lg flex items-center justify-center border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 transition-colors">
+                      <div className="text-center p-4">
+                        <Upload className="w-10 h-10 text-muted-foreground/40 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">Upload your score</p>
+                      </div>
+                    </div>
+                    <ObjectUploader
+                      maxNumberOfFiles={1}
+                      maxFileSize={20971520}
+                      onGetUploadParameters={async (file) => {
+                        const res = await fetch("/api/uploads/request-url", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            name: file.name,
+                            size: file.size,
+                            contentType: file.type,
+                          }),
+                        });
+                        const { uploadURL } = await res.json();
+                        return {
+                          method: "PUT",
+                          url: uploadURL,
+                          headers: { "Content-Type": file.type || "application/pdf" },
+                        };
+                      }}
+                      onComplete={(result) => {
+                        if (result.successful?.length) {
+                          const file = result.successful[0];
+                          setScoreFile({
+                            name: file.name || "score.pdf",
+                            path: `/objects/uploads/${file.name}`,
+                          });
+                        }
+                      }}
+                      buttonClassName="w-full"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload Score PDF
+                    </ObjectUploader>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
           <div className="space-y-6">
             <div className="flex items-center justify-between">

@@ -1,12 +1,15 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
   
+  registerObjectStorageRoutes(app);
+
   app.get("/api/composers/search", async (req, res) => {
     try {
       const query = (req.query.q as string) || "";
