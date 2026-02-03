@@ -37,8 +37,7 @@ export default function UserProfilePage() {
   return (
     <Layout>
       <div className="min-h-screen bg-background pb-20">
-        <div className="h-64 md:h-80 bg-primary relative overflow-hidden">
-          <div className="absolute inset-0 bg-black/40" />
+        <div className="h-64 md:h-80 bg-[#d4967c] relative overflow-hidden">
         </div>
 
         <div className="container mx-auto px-4 -mt-32 relative z-10">

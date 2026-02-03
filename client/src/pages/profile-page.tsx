@@ -93,10 +93,8 @@ export default function ProfilePage() {
   return (
     <Layout>
       <div className="min-h-screen bg-background pb-20">
-        {/* Cover Image */}
-        <div className="h-64 md:h-80 bg-primary relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1520529612392-749e493e8081?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent"></div>
+        {/* Banner */}
+        <div className="h-64 md:h-80 bg-[#d4967c] relative overflow-hidden">
         </div>
 
         <div className="container mx-auto px-4 -mt-32 relative z-10">
