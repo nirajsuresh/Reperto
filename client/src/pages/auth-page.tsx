@@ -34,15 +34,19 @@ export default function AuthPage() {
       <div className="hidden md:block relative h-full bg-primary overflow-hidden">
         <div className="absolute inset-0">
           <img 
-            src="/hero-classical.png" 
-            alt="Classical Instrument" 
-            className="w-full h-full object-cover opacity-80 mix-blend-overlay grayscale"
+            src="/src/assets/images/hero-piano-studio.png" 
+            alt="Piano Studio" 
+            className="w-full h-full object-cover opacity-80 mix-blend-overlay"
           />
         </div>
         <div className="relative z-10 h-full flex flex-col justify-between p-12 text-white">
           <Link href="/">
-             <div className="flex items-center gap-2 cursor-pointer">
-              <span className="font-serif text-2xl font-bold">Réperto</span>
+             <div className="flex items-center cursor-pointer">
+              <img 
+                src="/src/assets/images/logo.png" 
+                alt="Réperto Logo" 
+                className="h-12 w-auto"
+              />
             </div>
           </Link>
           <blockquote className="max-w-md">
@@ -59,7 +63,13 @@ export default function AuthPage() {
         <div className="w-full max-w-md space-y-8">
           <div className="text-center md:hidden mb-8">
             <Link href="/">
-              <span className="font-serif text-3xl font-bold text-primary">Réperto</span>
+              <div className="flex justify-center">
+                <img 
+                  src="/src/assets/images/logo.png" 
+                  alt="Réperto Logo" 
+                  className="h-12 w-auto"
+                />
+              </div>
             </Link>
           </div>
 
