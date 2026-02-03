@@ -13,10 +13,10 @@ import { cn } from "@/lib/utils";
 
 export default function PieceDetailPage() {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [status, setStatus] = useState("Performance-ready");
+  const [status, setStatus] = useState("In Progress");
   const [notes, setNotes] = useState([
-    { id: 1, date: "2024-02-01", time: "1.5", content: "Focused on the intonation in the opening G string passage. Needs more vibrato variety.", media: "https://vimeo.com/..." },
-    { id: 2, date: "2024-01-28", time: "2.0", content: "Worked on the double stops in the development section. Metronome at 60bpm.", media: "" }
+    { id: 1, date: "2024-02-12", time: "2.5", content: "Mastering the polyrhythms in the C section. Focus on left-hand clarity in the descending runs.", media: "https://vimeo.com/..." },
+    { id: 2, date: "2024-02-10", time: "3.0", content: "Memory work for the coda. Practicing jump accuracy at tempo.", media: "" }
   ]);
 
   const getStatusColor = (s: string) => {
@@ -46,8 +46,8 @@ export default function PieceDetailPage() {
                 <Music2 className="w-8 h-8 text-primary" />
               </div>
               <div>
-                <h1 className="font-serif text-4xl font-bold">Violin Sonata No. 3 in D minor</h1>
-                <p className="text-xl text-muted-foreground font-serif italic">Johannes Brahms, Op. 108</p>
+                <h1 className="font-serif text-4xl font-bold">Ballade No. 4 in F minor</h1>
+                <p className="text-xl text-muted-foreground font-serif italic">Frédéric Chopin, Op. 52</p>
               </div>
             </div>
             
@@ -72,7 +72,7 @@ export default function PieceDetailPage() {
           <Card className="mb-8 border-none shadow-sm overflow-hidden">
             <CardHeader className="bg-muted/30 pb-4 cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-serif">Historical Context & Analysis</CardTitle>
+                <CardTitle className="text-lg font-serif">Musical Analysis & Technique</CardTitle>
                 <Button variant="ghost" size="sm">
                   {isExpanded ? <ChevronUp /> : <ChevronDown />}
                 </Button>
@@ -81,11 +81,12 @@ export default function PieceDetailPage() {
             <CardContent className="pt-4">
               <div className={isExpanded ? "" : "line-clamp-3"}>
                 <p className="text-muted-foreground leading-relaxed">
-                  The Violin Sonata No. 3 in D minor, Op. 108, by Johannes Brahms was composed between 1886 and 1888. 
-                  Unlike his previous two sonatas, this one has four movements instead of three. It is dedicated to 
-                  his friend and colleague Hans von Bülow. The work is characterized by its dramatic intensity and 
-                  virtuosic writing for both instruments. The third movement, 'Un poco presto e con sentimento', 
-                  is particularly noted for its syncopated rhythms and shifting moods.
+                  Chopin's Fourth Ballade is widely considered one of the masterpieces of 19th-century piano music. 
+                  Composed in 1842, it represents the peak of his formal and harmonic language. The piece is 
+                  characterized by its complex counterpoint, variation-like structure, and profound emotional depth. 
+                  Technically, it demands extraordinary finger independence, subtle pedaling, and the ability 
+                  to maintain a lyrical line through dense, chromatic textures. The coda remains one of the most 
+                  formidable challenges in the standard repertoire.
                 </p>
               </div>
             </CardContent>
@@ -145,10 +146,10 @@ export default function PieceDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Practice Notes</Label>
-                  <Textarea placeholder="What did you focus on today?" className="min-h-[100px]" />
+                  <Textarea placeholder="Focus points: Voicing, Jump accuracy, Rubato..." className="min-h-[100px]" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Media Link (Optional)</Label>
+                  <Label>Recording Link</Label>
                   <Input placeholder="https://..." />
                 </div>
                 <Button className="w-full">Save Entry</Button>

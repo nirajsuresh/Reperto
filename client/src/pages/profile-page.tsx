@@ -13,36 +13,36 @@ import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarC
 import { useState } from "react";
 
 const genreData = [
-  { genre: "Baroque", value: 40 },
-  { genre: "Classical", value: 65 },
-  { genre: "Romantic", value: 90 },
-  { genre: "Impressionistic", value: 30 },
-  { genre: "Modern", value: 50 },
+  { genre: "Baroque", value: 50 },
+  { genre: "Classical", value: 45 },
+  { genre: "Romantic", value: 95 },
+  { genre: "Impressionistic", value: 80 },
+  { genre: "Modern", value: 30 },
 ];
 
 const lengthData = [
-  { name: "0-5m", count: 4 },
-  { name: "5-10m", count: 8 },
-  { name: "10-20m", count: 12 },
-  { name: "20-30m", count: 5 },
-  { name: "30m+", count: 2 },
+  { name: "0-5m", count: 12 },
+  { name: "5-10m", count: 6 },
+  { name: "10-20m", count: 4 },
+  { name: "20-30m", count: 8 },
+  { name: "30m+", count: 3 },
 ];
 
 const activityLog = [
-  { id: 1, type: "start", piece: "Sibelius Violin Concerto", date: "2 days ago" },
-  { id: 2, type: "ready", piece: "Brahms Violin Sonata No. 3", date: "1 week ago" },
-  { id: 3, type: "performance", piece: "Bach Partita No. 2", location: "Mozarthaus Vienna", date: "2 weeks ago" },
+  { id: 1, type: "start", piece: "Chopin - Ballade No. 4 in F minor", date: "1 day ago" },
+  { id: 2, type: "ready", piece: "Rachmaninoff - Piano Concerto No. 2", date: "1 week ago" },
+  { id: 3, type: "performance", piece: "Liszt - Sonata in B minor", location: "Carnegie Hall", date: "1 month ago" },
 ];
 
 const mockRepertoire = [
-  { id: "brahms-sonata-3", composer: "Johannes Brahms", piece: "Violin Sonata No. 3 in D minor", movement: "I. Allegro", status: "Performance-ready", date: "2023-09-15" },
-  { id: "bach-partita-2", composer: "J.S. Bach", piece: "Partita No. 2 in D minor", movement: "V. Chaconne", status: "In Progress", date: "2024-01-10" },
-  { id: "ysaye-sonata-3", composer: "Eugène Ysaÿe", piece: "Sonata No. 3 'Ballade'", movement: "Full", status: "Learned", date: "2023-11-20" },
-  { id: "sibelius-concerto", composer: "Jean Sibelius", piece: "Violin Concerto", movement: "I. Allegro", status: "Wishlist", date: "—" },
-  { id: "mozart-concerto-5", composer: "W.A. Mozart", piece: "Violin Concerto No. 5", movement: "III. Rondeau", status: "Learned", date: "2023-05-12" },
-  { id: "beethoven-sonata-9", composer: "Ludwig van Beethoven", piece: "Sonata No. 9 'Kreutzer'", movement: "I. Adagio sostenuto", status: "Wishlist", date: "—" },
-  { id: "mendelssohn-concerto", composer: "Felix Mendelssohn", piece: "Violin Concerto in E minor", movement: "I. Allegro molto appassionato", status: "Learned", date: "2022-11-30" },
-  { id: "paganini-caprice-24", composer: "Niccolò Paganini", piece: "24 Caprices", movement: "No. 24", status: "In Progress", date: "2024-02-01" },
+  { id: "chopin-ballade-4", composer: "Frédéric Chopin", piece: "Ballade No. 4 in F minor", movement: "Op. 52", status: "In Progress", date: "2024-02-01" },
+  { id: "rach-concerto-2", composer: "Sergei Rachmaninoff", piece: "Piano Concerto No. 2", movement: "I. Moderato", status: "Performance-ready", date: "2023-11-15" },
+  { id: "ravel-gaspard", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movement: "I. Ondine", status: "Polishing", date: "2024-01-10" },
+  { id: "beethoven-appassionata", composer: "Ludwig van Beethoven", piece: "Sonata No. 23 'Appassionata'", movement: "Full", status: "Learned", date: "2023-08-20" },
+  { id: "liszt-sonata-bminor", composer: "Franz Liszt", piece: "Sonata in B minor", movement: "S.178", status: "Learned", date: "2023-05-12" },
+  { id: "bach-wTC1-cminor", composer: "J.S. Bach", piece: "WTC Book 1: Prelude & Fugue", movement: "No. 2 in C minor", status: "Performance-ready", date: "2023-12-01" },
+  { id: "debussy-reflets", composer: "Claude Debussy", piece: "Images, Book I", movement: "Reflets dans l'eau", status: "In Progress", date: "2024-01-25" },
+  { id: "scriabin-sonata-5", composer: "Alexander Scriabin", piece: "Sonata No. 5", movement: "Op. 53", status: "Wishlist", date: "—" },
 ];
 
 export default function ProfilePage() {
@@ -54,23 +54,23 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-background pb-20">
         {/* Cover Image */}
         <div className="h-64 md:h-80 bg-primary relative overflow-hidden">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1507838153414-b4b713384ebd?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1520529612392-749e493e8081?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center opacity-40"></div>
           <div className="absolute inset-0 bg-gradient-to-t from-background/90 to-transparent"></div>
         </div>
 
         <div className="container mx-auto px-4 -mt-32 relative z-10">
           <div className="flex flex-col md:flex-row items-end gap-6 mb-8">
             <Avatar className="w-40 h-40 border-4 border-background shadow-2xl">
-              <AvatarImage src="https://github.com/shadcn.png" />
-              <AvatarFallback className="text-4xl font-serif">EC</AvatarFallback>
+              <AvatarImage src="https://images.unsplash.com/photo-1511367461989-f85a21fda167?q=80&w=2531&auto=format&fit=crop" />
+              <AvatarFallback className="text-4xl font-serif">MM</AvatarFallback>
             </Avatar>
             
             <div className="flex-1 pb-4 text-center md:text-left">
-              <h1 className="font-serif text-4xl font-bold text-primary mb-2">Elena Corvin</h1>
+              <h1 className="font-serif text-4xl font-bold text-primary mb-2">Marcello Moretti</h1>
               <div className="flex flex-col md:flex-row items-center gap-4 text-muted-foreground mb-4">
-                <span className="flex items-center gap-1 font-medium"><span className="text-accent-foreground">Violin</span> • Professional</span>
+                <span className="flex items-center gap-1 font-medium"><span className="text-accent-foreground">Piano</span> • Concert Pianist</span>
                 <span className="hidden md:inline">•</span>
-                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> Vienna, Austria</span>
+                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> Milan, Italy</span>
               </div>
             </div>
 
@@ -90,9 +90,9 @@ export default function ProfilePage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground leading-relaxed">
-                    Orchestral violinist and chamber musician based in Vienna. 
-                    Graduate of the Vienna Conservatory. Passionate about late Romantic repertoire 
-                    and contemporary Austrian composers.
+                    Classical pianist specializing in the Romantic and Impressionist eras. 
+                    Alumnus of the Conservatorio di Milano. Currently focused on the complete 
+                    cycle of Chopin Ballades and exploring Ravel's piano works.
                   </p>
                 </CardContent>
               </Card>
@@ -104,12 +104,12 @@ export default function ProfilePage() {
                 <CardContent className="space-y-4">
                   <div className="flex gap-4 items-start">
                     <div className="bg-primary/10 text-primary p-2 rounded text-center min-w-[3.5rem]">
-                      <div className="text-xs uppercase font-bold">Mar</div>
-                      <div className="text-xl font-bold">12</div>
+                      <div className="text-xs uppercase font-bold">Apr</div>
+                      <div className="text-xl font-bold">22</div>
                     </div>
                     <div>
-                      <h4 className="font-medium">Chamber Recital</h4>
-                      <p className="text-sm text-muted-foreground">Mozarthaus Vienna</p>
+                      <h4 className="font-medium">Solo Recital</h4>
+                      <p className="text-sm text-muted-foreground">Teatro alla Scala</p>
                     </div>
                   </div>
                 </CardContent>
@@ -137,7 +137,7 @@ export default function ProfilePage() {
                         <TableRow>
                           <TableHead>Composer</TableHead>
                           <TableHead>Piece</TableHead>
-                          <TableHead>Movement</TableHead>
+                          <TableHead>Opus/No.</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Started</TableHead>
                         </TableRow>
@@ -173,7 +173,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Activity Log */}
                 <div className="space-y-6 mb-12">
                   <div className="flex items-center gap-4">
                     <Activity className="w-6 h-6 text-primary" />
@@ -199,7 +198,6 @@ export default function ProfilePage() {
                   </Card>
                 </div>
 
-                {/* Integrated Insights */}
                 <div className="space-y-8 pt-8 border-t">
                   <div className="flex items-center gap-4">
                     <TrendingUp className="w-6 h-6 text-primary" />
@@ -255,19 +253,19 @@ export default function ProfilePage() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <SuggestionCard 
-                        composer="Maurice Ravel"
-                        title="Tzigane"
-                        reason="Your repertoire is heavily Romantic. Adding an Impressionistic showpiece would show versatility."
+                        composer="Sergei Prokofiev"
+                        title="Sonata No. 7"
+                        reason="Your repertoire is heavily Romantic and Impressionist. Adding a major 20th-century Russian sonata would show technical edge."
                       />
                       <SuggestionCard 
-                        composer="J.S. Bach"
-                        title="Sonata No. 1 in G minor"
-                        reason="Adding a polyphonic Baroque work will balance your current focus on D minor works."
+                        composer="Domenico Scarlatti"
+                        title="Selected Sonatas"
+                        reason="Adding early keyboard works will balance your heavy focus on big virtuosic Romantic cycles."
                       />
                       <SuggestionCard 
-                        composer="Béla Bartók"
-                        title="Violin Concerto No. 2"
-                        reason="A major 20th-century concerto would elevate your profile."
+                        composer="Olivier Messiaen"
+                        title="Vingt Regards sur l'Enfant-Jésus"
+                        reason="A masterpiece of the modern era would elevate your profile for international contemporary music festivals."
                       />
                     </div>
                   </div>
@@ -302,7 +300,7 @@ function RepertoireRow({ composer, piece, movement, status: initialStatus, date,
       <TableCell className="font-serif italic">
         <Link href={`/piece/${id}`}>{piece}</Link>
       </TableCell>
-      <TableCell className="text-muted-foreground">{movement}</TableCell>
+      <TableCell className="text-muted-foreground font-mono text-xs">{movement}</TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className={cn("h-8 w-[180px] font-medium border-none shadow-none focus:ring-0", getStatusColor(status))}>
