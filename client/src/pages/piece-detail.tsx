@@ -37,7 +37,7 @@ function StarRating({ rating, size = "md" }: { rating: number; size?: "sm" | "md
 
 export default function PieceDetailPage() {
   const params = useParams<{ id: string }>();
-  const pieceId = params.id ? parseInt(params.id) : 10;
+  const pieceId = params.id ? parseInt(params.id) : 20;
 
   const { data: pieceData } = useQuery({
     queryKey: ["/api/pieces", pieceId],
