@@ -179,5 +179,35 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/pieces/:pieceId/ratings", async (req, res) => {
+    try {
+      const pieceId = parseInt(req.params.pieceId);
+      const summary = await storage.getPieceRatingSummary(pieceId);
+      res.json(summary);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get piece ratings" });
+    }
+  });
+
+  app.get("/api/pieces/:pieceId/comments", async (req, res) => {
+    try {
+      const pieceId = parseInt(req.params.pieceId);
+      const comments = await storage.getPieceComments(pieceId);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get piece comments" });
+    }
+  });
+
+  app.get("/api/pieces/:pieceId/status-distribution", async (req, res) => {
+    try {
+      const pieceId = parseInt(req.params.pieceId);
+      const distribution = await storage.getPieceStatusDistribution(pieceId);
+      res.json(distribution);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get status distribution" });
+    }
+  });
+
   return httpServer;
 }

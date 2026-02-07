@@ -114,6 +114,30 @@ export const insertChallengeEntrySchema = createInsertSchema(challengeEntries).o
 export type InsertChallengeEntry = z.infer<typeof insertChallengeEntrySchema>;
 export type ChallengeEntry = typeof challengeEntries.$inferSelect;
 
+export const pieceRatings = pgTable("piece_ratings", {
+  id: serial("id").primaryKey(),
+  pieceId: integer("piece_id").notNull().references(() => pieces.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  rating: integer("rating").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPieceRatingSchema = createInsertSchema(pieceRatings).omit({ id: true, createdAt: true });
+export type InsertPieceRating = z.infer<typeof insertPieceRatingSchema>;
+export type PieceRating = typeof pieceRatings.$inferSelect;
+
+export const pieceComments = pgTable("piece_comments", {
+  id: serial("id").primaryKey(),
+  pieceId: integer("piece_id").notNull().references(() => pieces.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPieceCommentSchema = createInsertSchema(pieceComments).omit({ id: true, createdAt: true });
+export type InsertPieceComment = z.infer<typeof insertPieceCommentSchema>;
+export type PieceComment = typeof pieceComments.$inferSelect;
+
 export const userProfiles = pgTable("user_profiles", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id).unique(),

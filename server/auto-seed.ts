@@ -1,11 +1,17 @@
 import { db } from "./db";
-import { users, userProfiles, posts, challenges, follows, pieces, composers, movements } from "@shared/schema";
+import { users, userProfiles, posts, challenges, follows, pieces, composers, movements, pieceRatings, pieceComments, repertoireEntries } from "@shared/schema";
 
 export async function autoSeedIfEmpty() {
   const existingComposers = await db.select().from(composers).limit(1);
   
   if (existingComposers.length > 0) {
-    console.log("Database already has data, skipping auto-seed");
+    const existingRatings = await db.select().from(pieceRatings).limit(1);
+    if (existingRatings.length === 0) {
+      console.log("Database has catalog but missing community data, seeding new tables...");
+      await seedCommunityData();
+    } else {
+      console.log("Database already has data, skipping auto-seed");
+    }
     return;
   }
 
@@ -200,5 +206,116 @@ export async function autoSeedIfEmpty() {
   await db.insert(challenges).values(challengeData);
   console.log(`Auto-seeded ${challengeData.length} challenges`);
 
+  const repertoireData = [
+    { userId: userMap.get("maria_chen")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "Performance-ready", startedDate: "2023-06-15" },
+    { userId: userMap.get("alex_petrov")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "In Progress", startedDate: "2025-09-01" },
+    { userId: userMap.get("elena_volkov")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "Learned", startedDate: "2022-01-10" },
+    { userId: userMap.get("david_kim")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "Wishlist" },
+    { userId: userMap.get("sophia_martin")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "In Progress", startedDate: "2025-11-01" },
+    { userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "In Progress", startedDate: "2025-01-20" },
+
+    { userId: userMap.get("maria_chen")!, composerId: composerMap.get("Sergei Rachmaninoff")!, pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, status: "Performance-ready", startedDate: "2021-03-01" },
+    { userId: userMap.get("alex_petrov")!, composerId: composerMap.get("Sergei Rachmaninoff")!, pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, status: "In Progress", startedDate: "2025-06-01" },
+    { userId: userMap.get("elena_volkov")!, composerId: composerMap.get("Sergei Rachmaninoff")!, pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, status: "Re-learning", startedDate: "2024-08-15" },
+    { userId: userMap.get("david_kim")!, composerId: composerMap.get("Sergei Rachmaninoff")!, pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, status: "Wishlist" },
+
+    { userId: userMap.get("maria_chen")!, composerId: composerMap.get("Maurice Ravel")!, pieceId: pieceMap.get("Gaspard de la nuit")!, status: "In Progress", startedDate: "2025-10-01" },
+    { userId: userMap.get("alex_petrov")!, composerId: composerMap.get("Maurice Ravel")!, pieceId: pieceMap.get("Gaspard de la nuit")!, status: "Stopped learning" },
+    { userId: userMap.get("elena_volkov")!, composerId: composerMap.get("Maurice Ravel")!, pieceId: pieceMap.get("Gaspard de la nuit")!, status: "Performance-ready", startedDate: "2020-05-01" },
+  ];
+
+  await db.insert(repertoireEntries).values(repertoireData);
+  console.log(`Auto-seeded ${repertoireData.length} repertoire entries`);
+
+  const ratingData = [
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("maria_chen")!, rating: 5 },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("alex_petrov")!, rating: 5 },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("elena_volkov")!, rating: 4 },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("david_kim")!, rating: 5 },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("sophia_martin")!, rating: 4 },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("niraj_suresh")!, rating: 5 },
+    { pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, userId: userMap.get("maria_chen")!, rating: 5 },
+    { pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, userId: userMap.get("alex_petrov")!, rating: 5 },
+    { pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, userId: userMap.get("elena_volkov")!, rating: 4 },
+    { pieceId: pieceMap.get("Gaspard de la nuit")!, userId: userMap.get("elena_volkov")!, rating: 5 },
+    { pieceId: pieceMap.get("Gaspard de la nuit")!, userId: userMap.get("maria_chen")!, rating: 4 },
+  ];
+
+  await db.insert(pieceRatings).values(ratingData);
+  console.log(`Auto-seeded ${ratingData.length} piece ratings`);
+
+  const commentData = [
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("maria_chen")!, content: "The counterpoint in the development section is endlessly fascinating. Every time I revisit it, I hear new voices." },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("alex_petrov")!, content: "Currently working on the coda. The octave passages are brutal but so rewarding when they click." },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("elena_volkov")!, content: "I performed this at my graduation recital. The emotional arc from the opening theme to the devastating coda is unmatched in the repertoire." },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("david_kim")!, content: "Listening to Zimerman's recording on repeat. Someday I'll attempt this one." },
+    { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("sophia_martin")!, content: "The way Chopin weaves the main theme through increasingly complex variations is pure genius. Op. 52 is his greatest achievement." },
+    { pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, userId: userMap.get("maria_chen")!, content: "Three years of work and I can finally play this at tempo. The cadenza in the first movement is a world unto itself." },
+    { pieceId: pieceMap.get("Piano Concerto No. 3 in D minor")!, userId: userMap.get("elena_volkov")!, content: "The second movement is pure poetry. Don't rush through it to get to the fireworks of the third." },
+    { pieceId: pieceMap.get("Gaspard de la nuit")!, userId: userMap.get("elena_volkov")!, content: "Scarbo is technically the hardest, but Le Gibet is the movement that truly tests your artistry. That repeated B-flat bell tone..." },
+  ];
+
+  await db.insert(pieceComments).values(commentData);
+  console.log(`Auto-seeded ${commentData.length} piece comments`);
+
   console.log("Auto-seeding complete!");
+}
+
+async function seedCommunityData() {
+  try {
+    const allUsers = await db.select().from(users);
+    const userMap = new Map(allUsers.map(u => [u.username, u.id]));
+    
+    const allPieces = await db.select().from(pieces);
+    const pieceMap = new Map(allPieces.map(p => [p.title, p.id]));
+
+    const allComposers = await db.select().from(composers);
+    const composerMap = new Map(allComposers.map(c => [c.name, c.id]));
+
+    if (!userMap.get("maria_chen") || !pieceMap.get("Ballade No. 4 in F minor")) {
+      console.log("Missing required users or pieces for community seed, skipping");
+      return;
+    }
+
+    const existingRepertoire = await db.select().from(repertoireEntries).limit(1);
+    if (existingRepertoire.length === 0) {
+      const repertoireData = [
+        { userId: userMap.get("maria_chen")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "Performance-ready", startedDate: "2023-06-15" },
+        { userId: userMap.get("alex_petrov")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "In Progress", startedDate: "2025-09-01" },
+        { userId: userMap.get("elena_volkov")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "Learned", startedDate: "2022-01-10" },
+        { userId: userMap.get("david_kim")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "Wishlist" },
+        { userId: userMap.get("sophia_martin")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "In Progress", startedDate: "2025-11-01" },
+        { userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Frédéric Chopin")!, pieceId: pieceMap.get("Ballade No. 4 in F minor")!, status: "In Progress", startedDate: "2025-01-20" },
+      ];
+      await db.insert(repertoireEntries).values(repertoireData);
+      console.log(`Seeded ${repertoireData.length} repertoire entries`);
+    }
+
+    const ratingData = [
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("maria_chen")!, rating: 5 },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("alex_petrov")!, rating: 5 },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("elena_volkov")!, rating: 4 },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("david_kim")!, rating: 5 },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("sophia_martin")!, rating: 4 },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("niraj_suresh")!, rating: 5 },
+    ];
+
+    await db.insert(pieceRatings).values(ratingData);
+    console.log(`Seeded ${ratingData.length} piece ratings`);
+
+    const commentData = [
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("maria_chen")!, content: "The counterpoint in the development section is endlessly fascinating. Every time I revisit it, I hear new voices." },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("alex_petrov")!, content: "Currently working on the coda. The octave passages are brutal but so rewarding when they click." },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("elena_volkov")!, content: "I performed this at my graduation recital. The emotional arc from the opening theme to the devastating coda is unmatched in the repertoire." },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("david_kim")!, content: "Listening to Zimerman's recording on repeat. Someday I'll attempt this one." },
+      { pieceId: pieceMap.get("Ballade No. 4 in F minor")!, userId: userMap.get("sophia_martin")!, content: "The way Chopin weaves the main theme through increasingly complex variations is pure genius. Op. 52 is his greatest achievement." },
+    ];
+
+    await db.insert(pieceComments).values(commentData);
+    console.log(`Seeded ${commentData.length} piece comments`);
+
+    console.log("Community data seeding complete!");
+  } catch (error) {
+    console.error("Error seeding community data:", error);
+  }
 }

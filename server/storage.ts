@@ -8,10 +8,13 @@ import {
   type Challenge, type InsertChallenge,
   type UserProfile, type InsertUserProfile,
   type Follow, type InsertFollow,
-  users, composers, pieces, movements, repertoireEntries, posts, challenges, userProfiles, follows
+  type PieceRating, type InsertPieceRating,
+  type PieceComment, type InsertPieceComment,
+  users, composers, pieces, movements, repertoireEntries, posts, challenges, userProfiles, follows,
+  pieceRatings, pieceComments
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, ilike, and, desc, inArray } from "drizzle-orm";
+import { eq, ilike, and, desc, inArray, sql, count, avg } from "drizzle-orm";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -46,6 +49,10 @@ export interface IStorage {
   getUserProfile(userId: string): Promise<UserProfile | undefined>;
   getFollowing(userId: string): Promise<string[]>;
   getSuggestedUsers(userId: string, limit?: number): Promise<any[]>;
+  
+  getPieceRatingSummary(pieceId: number): Promise<{ averageRating: number; totalRatings: number }>;
+  getPieceComments(pieceId: number): Promise<any[]>;
+  getPieceStatusDistribution(pieceId: number): Promise<{ status: string; count: number }[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -258,6 +265,51 @@ export class DatabaseStorage implements IStorage {
       .limit(limit + excludeIds.length);
     
     return results.filter(r => !excludeIds.includes(r.userId)).slice(0, limit);
+  }
+
+  async getPieceRatingSummary(pieceId: number): Promise<{ averageRating: number; totalRatings: number }> {
+    const result = await db
+      .select({
+        averageRating: avg(pieceRatings.rating),
+        totalRatings: count(pieceRatings.id),
+      })
+      .from(pieceRatings)
+      .where(eq(pieceRatings.pieceId, pieceId));
+    
+    return {
+      averageRating: result[0]?.averageRating ? parseFloat(result[0].averageRating) : 0,
+      totalRatings: result[0]?.totalRatings ?? 0,
+    };
+  }
+
+  async getPieceComments(pieceId: number): Promise<any[]> {
+    const results = await db
+      .select({
+        id: pieceComments.id,
+        content: pieceComments.content,
+        createdAt: pieceComments.createdAt,
+        displayName: userProfiles.displayName,
+        avatarUrl: userProfiles.avatarUrl,
+      })
+      .from(pieceComments)
+      .leftJoin(userProfiles, eq(pieceComments.userId, userProfiles.userId))
+      .where(eq(pieceComments.pieceId, pieceId))
+      .orderBy(desc(pieceComments.createdAt));
+    
+    return results;
+  }
+
+  async getPieceStatusDistribution(pieceId: number): Promise<{ status: string; count: number }[]> {
+    const results = await db
+      .select({
+        status: repertoireEntries.status,
+        count: count(repertoireEntries.id),
+      })
+      .from(repertoireEntries)
+      .where(eq(repertoireEntries.pieceId, pieceId))
+      .groupBy(repertoireEntries.status);
+    
+    return results;
   }
 }
 
