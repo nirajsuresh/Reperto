@@ -97,6 +97,7 @@ export default function PieceDetailPage() {
     queryKey: ["/api/pieces", pieceId, "ratings"],
     queryFn: async () => {
       const res = await fetch(`/api/pieces/${pieceId}/ratings`);
+      if (!res.ok) return { averageRating: 0, totalRatings: 0 };
       return res.json();
     },
   });
@@ -105,7 +106,9 @@ export default function PieceDetailPage() {
     queryKey: ["/api/pieces", pieceId, "comments"],
     queryFn: async () => {
       const res = await fetch(`/api/pieces/${pieceId}/comments`);
-      return res.json();
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 
@@ -113,13 +116,16 @@ export default function PieceDetailPage() {
     queryKey: ["/api/pieces", pieceId, "status-distribution"],
     queryFn: async () => {
       const res = await fetch(`/api/pieces/${pieceId}/status-distribution`);
-      return res.json();
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
     },
   });
 
   const allStatuses = ["Wishlist", "In Progress", "Learned", "Performance-ready", "Re-learning", "Stopped learning"];
+  const safeDistribution = Array.isArray(statusDistribution) ? statusDistribution : [];
   const distributionData = allStatuses.map(s => {
-    const found = statusDistribution?.find((d: any) => d.status === s);
+    const found = safeDistribution.find((d: any) => d.status === s);
     return { status: s, count: found ? Number(found.count) : 0 };
   });
 
