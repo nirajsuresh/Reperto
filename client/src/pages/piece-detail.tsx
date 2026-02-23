@@ -340,7 +340,7 @@ export default function PieceDetailPage() {
                         </div>
                       </ObjectUploader>
                       <a
-                        href={`https://imslp.org/wiki/Special:Search?search=${encodeURIComponent((pieceData?.title ?? "") + " " + (composerData?.name ?? ""))}`}
+                        href="https://imslp.org/wiki/Ballade_No.4,_Op.52_(Chopin,_Fr%C3%A9d%C3%A9ric)"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="w-full"
