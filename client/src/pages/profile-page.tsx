@@ -47,14 +47,14 @@ const activityLog = [
 ];
 
 const mockRepertoire = [
-  { id: "1260", composer: "Frédéric Chopin", piece: "Ballade no. 4 in F minor Op. 52", movement: "", status: "Learning", date: "2024-02-01" },
-  { id: "2219", composer: "Sergei Rachmaninoff", piece: "Préludes Op. 23", movement: "No. 5 in G minor", status: "Performance-ready", date: "2023-11-15" },
-  { id: "2055", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movement: "I. Ondine", status: "Polishing", date: "2024-01-10" },
-  { id: "1997", composer: "Ludwig van Beethoven", piece: "Sonata no. 23 in F minor Op. 57 (Appassionata)", movement: "Full", status: "Performance-ready", date: "2023-08-20" },
-  { id: "1103", composer: "Franz Liszt", piece: "Sonata in B minor S. 178", movement: "", status: "Shelved", date: "2023-05-12" },
-  { id: "1791", composer: "Johann Sebastian Bach", piece: "The Well-Tempered Clavier, Book 1 BWV 846–869", movement: "Prelude & Fugue No. 2 in C minor", status: "Polishing", date: "2023-12-01" },
-  { id: "262", composer: "Claude Debussy", piece: "Images, Série 1", movement: "Reflets dans l'eau", status: "Learning", date: "2024-01-25" },
-  { id: "220", composer: "Alexander Scriabin", piece: "Sonata no. 5 Op. 53", movement: "", status: "Want to learn", date: "—" },
+  { id: "1260", composer: "Frédéric Chopin", piece: "Ballade no. 4 in F minor Op. 52", movements: [] as string[], status: "Learning", date: "2024-02-01" },
+  { id: "2219", composer: "Sergei Rachmaninoff", piece: "Préludes Op. 23", movements: ["No. 5 G minor"], status: "Performance-ready", date: "2023-11-15" },
+  { id: "2055", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movements: ["No. 1 Ondine"], status: "Polishing", date: "2024-01-10" },
+  { id: "1997", composer: "Ludwig van Beethoven", piece: "Sonata no. 23 in F minor Op. 57 (Appassionata)", movements: ["1. Allegro assai", "2. Andante con moto", "3. Allegro ma non troppo"], status: "Performance-ready", date: "2023-08-20" },
+  { id: "1103", composer: "Franz Liszt", piece: "Sonata in B minor S. 178", movements: [] as string[], status: "Shelved", date: "2023-05-12" },
+  { id: "1791", composer: "Johann Sebastian Bach", piece: "The Well-Tempered Clavier, Book 1 BWV 846–869", movements: ["2. C minor, BWV 847, Prelude", "2. C minor, BWV 847, Fugue"], status: "Polishing", date: "2023-12-01" },
+  { id: "262", composer: "Claude Debussy", piece: "Images, Série 1", movements: ["No. 1 Reflets dans l'eau"], status: "Learning", date: "2024-01-25" },
+  { id: "220", composer: "Alexander Scriabin", piece: "Sonata no. 5 Op. 53", movements: [] as string[], status: "Want to learn", date: "—" },
 ];
 
 export default function ProfilePage() {
@@ -72,8 +72,10 @@ export default function ProfilePage() {
   const sortedRepertoire = [...mockRepertoire].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
-    if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-    if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+    const valA = key === "movements" ? a[key].join(", ") : a[key];
+    const valB = key === "movements" ? b[key].join(", ") : b[key];
+    if (valA < valB) return direction === 'asc' ? -1 : 1;
+    if (valA > valB) return direction === 'asc' ? 1 : -1;
     return 0;
   });
 
@@ -169,7 +171,7 @@ export default function ProfilePage() {
                           <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('piece')}>
                             <div className="flex items-center gap-2">Piece <ArrowUpDown className="w-3 h-3" /></div>
                           </TableHead>
-                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('movement')}>
+                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('movements')}>
                             <div className="flex items-center gap-2">Movement(s) <ArrowUpDown className="w-3 h-3" /></div>
                           </TableHead>
                           <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('status')}>
@@ -188,7 +190,7 @@ export default function ProfilePage() {
                             id={item.id}
                             composer={item.composer}
                             piece={item.piece}
-                            movement={item.movement}
+                            movements={item.movements}
                             status={item.status}
                             date={item.date}
                           />
@@ -318,9 +320,9 @@ export default function ProfilePage() {
   );
 }
 
-function RepertoireRow({ composer, piece, movement, status: initialStatus, date, id }: { composer: string, piece: string, movement: string, status: string, date: string, id: string }) {
+function RepertoireRow({ composer, piece, movements, status: initialStatus, date, id }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string }) {
   const [status, setStatus] = useState(initialStatus);
-
+  const [movementsExpanded, setMovementsExpanded] = useState(false);
 
   return (
     <TableRow className="group hover:bg-muted/20 transition-colors">
@@ -330,7 +332,31 @@ function RepertoireRow({ composer, piece, movement, status: initialStatus, date,
       <TableCell className="font-serif italic">
         <Link href={`/piece/${id}`}>{piece}</Link>
       </TableCell>
-      <TableCell className="text-muted-foreground font-mono text-xs">{movement}</TableCell>
+      <TableCell className="text-muted-foreground font-mono text-xs">
+        {movements.length === 0 ? (
+          "—"
+        ) : movements.length === 1 ? (
+          movements[0]
+        ) : (
+          <div>
+            <span>{movements[0]}</span>
+            <button
+              className="ml-1 text-primary hover:underline cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); setMovementsExpanded(!movementsExpanded); }}
+              data-testid={`button-expand-movements-${id}`}
+            >
+              {movementsExpanded ? "(show less)" : `(+${movements.length - 1} more)`}
+            </button>
+            {movementsExpanded && (
+              <div className="mt-1 space-y-0.5">
+                {movements.slice(1).map((m, i) => (
+                  <div key={i}>{m}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className={cn("h-8 w-[180px] font-medium border-none shadow-none focus:ring-0", getStatusColor(status))}>
