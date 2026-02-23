@@ -105,7 +105,7 @@ function RepertoireSetupRow({
 
   return (
     <TableRow>
-      <TableCell>
+      <TableCell className="overflow-hidden">
         <SearchableCombobox
           options={composerOptions}
           value={row.composerId}
@@ -117,7 +117,7 @@ function RepertoireSetupRow({
           isLoading={composersLoading}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="overflow-hidden">
         <SearchableCombobox
           options={pieceOptions}
           value={row.pieceId}
@@ -130,7 +130,7 @@ function RepertoireSetupRow({
           disabled={!row.composerId}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="overflow-hidden">
         <MultiSelectCombobox
           options={movementOptions}
           values={row.movementIds ? row.movementIds.split(",") : []}
@@ -143,7 +143,7 @@ function RepertoireSetupRow({
           disabled={!row.pieceId || movements.length === 0}
         />
       </TableCell>
-      <TableCell>
+      <TableCell className="overflow-hidden">
         <Select 
           value={row.status} 
           onValueChange={(val) => onUpdate("status", val)}
@@ -161,7 +161,7 @@ function RepertoireSetupRow({
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell>
+      <TableCell className="overflow-hidden">
         <Input 
           type="date" 
           disabled={row.status === "Wishlist"}
@@ -311,15 +311,23 @@ export default function ProfileSetup() {
 
               {step === 3 && (
                 <div className="space-y-6 overflow-x-auto">
-                  <Table>
+                  <Table className="table-fixed w-full">
+                    <colgroup>
+                      <col className="w-[22%]" />
+                      <col className="w-[25%]" />
+                      <col className="w-[18%]" />
+                      <col className="w-[16%]" />
+                      <col className="w-[13%]" />
+                      <col className="w-[6%]" />
+                    </colgroup>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[200px]">Composer</TableHead>
-                        <TableHead className="w-[200px]">Piece</TableHead>
-                        <TableHead className="w-[150px]">Movement(s)</TableHead>
-                        <TableHead className="w-[180px]">Status</TableHead>
-                        <TableHead className="w-[150px]">Started</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
+                        <TableHead>Composer</TableHead>
+                        <TableHead>Piece</TableHead>
+                        <TableHead>Movement(s)</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Started</TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
