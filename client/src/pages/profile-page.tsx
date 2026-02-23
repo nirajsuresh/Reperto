@@ -85,22 +85,22 @@ export default function ProfilePage() {
         <div className="h-32 md:h-40 bg-[#d4967c] relative overflow-hidden">
         </div>
 
-        <div className="container mx-auto px-4 -mt-16 relative z-10">
-          <div className="flex flex-col md:flex-row items-end gap-6 mb-8">
-            <PianoAvatar avatarId="avatar-8" size={140} className="border-4 border-background shadow-2xl shrink-0" />
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex flex-col md:flex-row items-center gap-4 py-4">
+            <PianoAvatar avatarId="avatar-8" size={80} className="border-3 border-background shadow-lg shrink-0 -mt-10" />
             
-            <div className="flex-1 pb-4 text-center md:text-left">
-              <h1 className="font-serif text-4xl font-bold text-primary mb-2">Niraj Suresh</h1>
-              <div className="flex flex-col md:flex-row items-center gap-4 text-muted-foreground mb-4">
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="font-serif text-2xl font-bold text-primary">Niraj Suresh</h1>
+              <div className="flex flex-col md:flex-row items-center gap-2 text-muted-foreground text-sm">
                 <span className="flex items-center gap-1 font-medium"><span className="text-accent-foreground">Piano</span> • Serious Amateur</span>
                 <span className="hidden md:inline">•</span>
-                <span className="flex items-center gap-1"><MapPin className="w-4 h-4" /> Boston, USA</span>
+                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Boston, USA</span>
               </div>
             </div>
 
-            <div className="pb-4 flex gap-3">
-              <Button variant="outline" className="bg-background/50 backdrop-blur-sm">
-                <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
+            <div className="flex gap-3">
+              <Button variant="outline" size="sm">
+                <Edit2 className="w-3.5 h-3.5 mr-1.5" /> Edit Profile
               </Button>
             </div>
           </div>
