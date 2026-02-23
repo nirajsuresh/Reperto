@@ -40,20 +40,20 @@ const lengthData = [
 ];
 
 const activityLog = [
-  { id: 1, type: "start", piece: "Chopin - Ballade No. 4 in F minor", date: "1 day ago" },
-  { id: 2, type: "ready", piece: "Rachmaninoff - Piano Concerto No. 2", date: "1 week ago" },
+  { id: 1, type: "start", piece: "Chopin - Ballade no. 4 in F minor Op. 52", date: "1 day ago" },
+  { id: 2, type: "ready", piece: "Rachmaninoff - Préludes Op. 23", date: "1 week ago" },
   { id: 3, type: "performance", piece: "Liszt - Sonata in B minor", location: "Carnegie Hall", date: "1 month ago" },
 ];
 
 const mockRepertoire = [
-  { id: "20", composer: "Frédéric Chopin", piece: "Ballade No. 4 in F minor", movement: "", status: "In Progress", date: "2024-02-01" },
-  { id: "63", composer: "Sergei Rachmaninoff", piece: "Piano Concerto No. 2 in C minor", movement: "I. Moderato", status: "Performance-ready", date: "2023-11-15" },
-  { id: "72", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movement: "I. Ondine", status: "Polishing", date: "2024-01-10" },
-  { id: "11", composer: "Ludwig van Beethoven", piece: "Sonata No. 23 'Appassionata'", movement: "Full", status: "Learned", date: "2023-08-20" },
-  { id: "44", composer: "Franz Liszt", piece: "Sonata in B minor", movement: "S.178", status: "Learned", date: "2023-05-12" },
-  { id: "1", composer: "J.S. Bach", piece: "WTC Book 1: Prelude & Fugue", movement: "No. 2 in C minor", status: "Performance-ready", date: "2023-12-01" },
-  { id: "36", composer: "Claude Debussy", piece: "Images, Book I", movement: "Reflets dans l'eau", status: "In Progress", date: "2024-01-25" },
-  { id: "84", composer: "Alexander Scriabin", piece: "Sonata No. 5", movement: "", status: "Wishlist", date: "—" },
+  { id: "1260", composer: "Frédéric Chopin", piece: "Ballade no. 4 in F minor Op. 52", movement: "", status: "In Progress", date: "2024-02-01" },
+  { id: "2219", composer: "Sergei Rachmaninoff", piece: "Préludes Op. 23", movement: "No. 5 in G minor", status: "Performance-ready", date: "2023-11-15" },
+  { id: "2055", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movement: "I. Ondine", status: "Polishing", date: "2024-01-10" },
+  { id: "1997", composer: "Ludwig van Beethoven", piece: "Sonata no. 23 in F minor Op. 57 (Appassionata)", movement: "Full", status: "Learned", date: "2023-08-20" },
+  { id: "1103", composer: "Franz Liszt", piece: "Sonata in B minor S. 178", movement: "", status: "Learned", date: "2023-05-12" },
+  { id: "1791", composer: "Johann Sebastian Bach", piece: "The Well-Tempered Clavier, Book 1 BWV 846–869", movement: "Prelude & Fugue No. 2 in C minor", status: "Performance-ready", date: "2023-12-01" },
+  { id: "262", composer: "Claude Debussy", piece: "Images, Série 1", movement: "Reflets dans l'eau", status: "In Progress", date: "2024-01-25" },
+  { id: "220", composer: "Alexander Scriabin", piece: "Sonata no. 5 Op. 53", movement: "", status: "Wishlist", date: "—" },
 ];
 
 export default function ProfilePage() {

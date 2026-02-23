@@ -36,6 +36,7 @@ Preferred communication style: Simple, everyday language.
 - **Shared Types**: Schema definitions in `/shared/schema.ts` are used by both frontend and backend, ensuring type consistency
 - **Storage Abstraction**: The `IStorage` interface in `/server/storage.ts` provides a clean abstraction layer over database operations
 - **Presigned URL Uploads**: Two-step upload flow where backend provides presigned URLs and clients upload directly to object storage
+- **Piano Library Seed**: `server/piano-library.json` contains the full piano repertoire catalog (25 composers, 2207 pieces, 4000+ movements) extracted from a user-provided SQLite database. Auto-seed in `server/auto-seed.ts` loads this on first run.
 
 ### Build System
 - **Development**: Vite dev server with HMR for frontend, tsx for backend hot reloading
