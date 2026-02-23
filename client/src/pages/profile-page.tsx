@@ -67,7 +67,7 @@ function groupRepertoireData(raw: any[]): RepertoireItem[] {
     const pieceId = entry.pieceId;
     if (!grouped.has(pieceId)) {
       grouped.set(pieceId, {
-        id: String(entry.id),
+        id: String(pieceId),
         composer: entry.composerName,
         piece: entry.pieceTitle,
         movements: [],
@@ -79,7 +79,11 @@ function groupRepertoireData(raw: any[]): RepertoireItem[] {
       grouped.get(pieceId)!.movements.push(entry.movementName);
     }
   }
-  return Array.from(grouped.values());
+  const items = Array.from(grouped.values());
+  for (const item of items) {
+    item.movements.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }
+  return items;
 }
 
 export default function ProfilePage() {
@@ -352,24 +356,33 @@ export default function ProfilePage() {
                     <Activity className="w-6 h-6 text-primary" />
                     <h2 className="font-serif text-2xl font-bold">Activity Log</h2>
                   </div>
-                  <Card className="border-none shadow-sm divide-y">
-                    {activityLog.map((log) => (
-                      <div key={log.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                        <div className="flex items-center gap-4">
-                          <div className={cn(
-                            "w-2 h-2 rounded-full",
-                            log.type === "start" ? "bg-[#c47a5a]" : log.type === "ready" ? "bg-[#8b7040]" : "bg-[#7a6e60]"
-                          )} />
-                          <p className="text-sm">
-                            {log.type === "start" && <>You started <span className="font-serif italic font-bold">{log.piece}</span>!</>}
-                            {log.type === "ready" && <>You are performance-ready with <span className="font-serif italic font-bold">{log.piece}</span></>}
-                            {log.type === "performance" && <>You added a performance on <span className="font-serif italic font-bold">{log.piece}</span> at {log.location}</>}
-                          </p>
+                  {repertoire.length === 0 ? (
+                    <Card className="border-none shadow-sm">
+                      <CardContent className="py-12 text-center">
+                        <Activity className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+                        <p className="text-muted-foreground">No activity yet. Start adding pieces to your repertoire to track your progress.</p>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-none shadow-sm divide-y">
+                      {activityLog.map((log) => (
+                        <div key={log.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center gap-4">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              log.type === "start" ? "bg-[#c47a5a]" : log.type === "ready" ? "bg-[#8b7040]" : "bg-[#7a6e60]"
+                            )} />
+                            <p className="text-sm">
+                              {log.type === "start" && <>You started <span className="font-serif italic font-bold">{log.piece}</span>!</>}
+                              {log.type === "ready" && <>You are performance-ready with <span className="font-serif italic font-bold">{log.piece}</span></>}
+                              {log.type === "performance" && <>You added a performance on <span className="font-serif italic font-bold">{log.piece}</span> at {log.location}</>}
+                            </p>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{log.date}</span>
                         </div>
-                        <span className="text-xs text-muted-foreground">{log.date}</span>
-                      </div>
-                    ))}
-                  </Card>
+                      ))}
+                    </Card>
+                  )}
                 </div>
 
                 <div className="space-y-8 pt-8 border-t">
@@ -377,72 +390,83 @@ export default function ProfilePage() {
                     <TrendingUp className="w-6 h-6 text-primary" />
                     <h2 className="font-serif text-2xl font-bold">Artistic Insights</h2>
                   </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                  {repertoire.length < 3 ? (
                     <Card className="border-none shadow-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg">Genre Representation</CardTitle>
-                      </CardHeader>
-                      <CardContent className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart data={genreData}>
-                            <PolarGrid stroke="#e5e5e5" />
-                            <PolarAngleAxis dataKey="genre" tick={{ fill: "#666", fontSize: 10 }} />
-                            <Radar
-                              name="Repertoire"
-                              dataKey="value"
-                              stroke="hsl(var(--primary))"
-                              fill="hsl(var(--primary))"
-                              fillOpacity={0.4}
-                            />
-                          </RadarChart>
-                        </ResponsiveContainer>
+                      <CardContent className="py-12 text-center">
+                        <TrendingUp className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+                        <p className="text-muted-foreground">Add at least 3 pieces to your repertoire to unlock artistic insights and recommendations.</p>
                       </CardContent>
                     </Card>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <Card className="border-none shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-lg">Genre Representation</CardTitle>
+                          </CardHeader>
+                          <CardContent className="h-[250px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <RadarChart data={genreData}>
+                                <PolarGrid stroke="#e5e5e5" />
+                                <PolarAngleAxis dataKey="genre" tick={{ fill: "#666", fontSize: 10 }} />
+                                <Radar
+                                  name="Repertoire"
+                                  dataKey="value"
+                                  stroke="hsl(var(--primary))"
+                                  fill="hsl(var(--primary))"
+                                  fillOpacity={0.4}
+                                />
+                              </RadarChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
 
-                    <Card className="border-none shadow-sm">
-                      <CardHeader>
-                        <CardTitle className="text-lg">Piece Length Distribution</CardTitle>
-                      </CardHeader>
-                      <CardContent className="h-[250px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={lengthData}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                            <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-                            <YAxis tick={{ fontSize: 10 }} />
-                            <Tooltip 
-                              contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
-                            />
-                            <Bar dataKey="count" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
-                  </div>
+                        <Card className="border-none shadow-sm">
+                          <CardHeader>
+                            <CardTitle className="text-lg">Piece Length Distribution</CardTitle>
+                          </CardHeader>
+                          <CardContent className="h-[250px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={lengthData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                                <YAxis tick={{ fontSize: 10 }} />
+                                <Tooltip 
+                                  contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                                />
+                                <Bar dataKey="count" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </CardContent>
+                        </Card>
+                      </div>
 
-                  <div className="space-y-6">
-                    <h3 className="font-serif text-xl font-bold flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-accent-foreground" />
-                      Rounding Out Your Repertoire
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <SuggestionCard 
-                        composer="Sergei Prokofiev"
-                        title="Sonata No. 7"
-                        reason="Your repertoire is heavily Romantic and Impressionist. Adding a major 20th-century Russian sonata would show technical edge."
-                      />
-                      <SuggestionCard 
-                        composer="Domenico Scarlatti"
-                        title="Selected Sonatas"
-                        reason="Adding early keyboard works will balance your heavy focus on big virtuosic Romantic cycles."
-                      />
-                      <SuggestionCard 
-                        composer="Olivier Messiaen"
-                        title="Vingt Regards sur l'Enfant-Jésus"
-                        reason="A masterpiece of the modern era would elevate your profile for international contemporary music festivals."
-                      />
-                    </div>
-                  </div>
+                      <div className="space-y-6">
+                        <h3 className="font-serif text-xl font-bold flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-accent-foreground" />
+                          Rounding Out Your Repertoire
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <SuggestionCard 
+                            composer="Sergei Prokofiev"
+                            title="Sonata No. 7"
+                            reason="Your repertoire is heavily Romantic and Impressionist. Adding a major 20th-century Russian sonata would show technical edge."
+                          />
+                          <SuggestionCard 
+                            composer="Domenico Scarlatti"
+                            title="Selected Sonatas"
+                            reason="Adding early keyboard works will balance your heavy focus on big virtuosic Romantic cycles."
+                          />
+                          <SuggestionCard 
+                            composer="Olivier Messiaen"
+                            title="Vingt Regards sur l'Enfant-Jésus"
+                            reason="A masterpiece of the modern era would elevate your profile for international contemporary music festivals."
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </Tabs>
             </div>
