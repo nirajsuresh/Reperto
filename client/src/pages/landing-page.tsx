@@ -37,7 +37,7 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.2, ease: "easeOut" }}
             className="text-lg md:text-xl text-white/90 mb-10 max-w-2xl mx-auto font-light leading-relaxed"
           >
-            Manage your repertoire, record your progress, and grow alongside other serious musicians.
+            Manage your musical catalog, record your progress, and grow alongside other serious musicians.
           </motion.p>
           
           <motion.div
@@ -66,17 +66,17 @@ export default function LandingPage() {
             <FeatureCard 
               icon={<BookOpen className="w-8 h-8" />}
               title="Repertoire Tracking"
-              description="Keep a detailed log of every etude, sonata, and concerto you've mastered, currently practicing, or wish to learn."
+              description="Keep a detailed log of every piece you wish to learn, are currently practicing or have mastered."
             />
             <FeatureCard 
               icon={<Users className="w-8 h-8" />}
               title="Connect & Collaborate"
-              description="Find accompanists, chamber partners, and peers who share your passion and dedication to the craft."
+              description="Find peers who share your passion, and engage in community discussions and learning challenges."
             />
             <FeatureCard 
               icon={<Music className="w-8 h-8" />}
               title="Performance History"
-              description="Build a verified timeline of your recitals, competitions, and masterclasses to showcase your experience."
+              description="Build a verified timeline of your performances to showcase your experience."
             />
           </div>
         </div>
@@ -88,7 +88,7 @@ export default function LandingPage() {
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="font-serif text-4xl md:text-5xl font-bold mb-8">Ready to Organize Your Artistry?</h2>
           <p className="text-primary-foreground/80 text-xl mb-10 max-w-2xl mx-auto">
-            Join thousands of cellists, pianists, violinists, and vocalists who trust Réperto with their musical legacy.
+            Join thousands of pianists who trust Réperto with their musical legacy.
           </p>
           <Link href="/auth?tab=register">
             <Button size="lg" className="h-14 px-10 text-lg rounded-full bg-accent text-accent-foreground hover:bg-accent/90 border-0">
