@@ -19,6 +19,7 @@ Preferred communication style: Simple, everyday language.
 - **Forms**: React Hook Form with Zod validation via @hookform/resolvers
 - **File Uploads**: Uppy with AWS S3 presigned URL uploads
 - **Animations**: Framer Motion for page transitions and micro-interactions
+- **Drag & Drop**: @dnd-kit for sortable repertoire table rows
 
 ### Backend Architecture
 - **Framework**: Express.js with TypeScript

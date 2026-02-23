@@ -34,7 +34,20 @@ interface Movement {
   pieceId: number;
 }
 
-export function AddPieceDialog() {
+export interface NewPieceData {
+  id: string;
+  composer: string;
+  piece: string;
+  movements: string[];
+  status: string;
+  date: string;
+}
+
+interface AddPieceDialogProps {
+  onAdd?: (piece: NewPieceData) => void;
+}
+
+export function AddPieceDialog({ onAdd }: AddPieceDialogProps) {
   const [open, setOpen] = useState(false);
   const [composerQuery, setComposerQuery] = useState("");
   const [pieceQuery, setPieceQuery] = useState("");
@@ -90,6 +103,12 @@ export function AddPieceDialog() {
     }
   }, [selectedPieceId]);
 
+  useEffect(() => {
+    if (status === "Want to learn") {
+      setStartedDate("");
+    }
+  }, [status]);
+
   const handleReset = () => {
     setSelectedComposerId("");
     setSelectedPieceId("");
@@ -101,13 +120,23 @@ export function AddPieceDialog() {
   };
 
   const handleSubmit = () => {
-    console.log({
-      composerId: selectedComposerId,
-      pieceId: selectedPieceId,
-      movementIds: selectedMovementIds.length > 0 ? selectedMovementIds : null,
+    const composerName = composers.find(c => c.id.toString() === selectedComposerId)?.name ?? "";
+    const pieceTitle = pieces.find(p => p.id.toString() === selectedPieceId)?.title ?? "";
+    const movementNames = selectedMovementIds.map(id => {
+      const m = movements.find(m => m.id.toString() === id);
+      return m?.name ?? "";
+    }).filter(Boolean);
+
+    const newPiece: NewPieceData = {
+      id: selectedPieceId,
+      composer: composerName,
+      piece: pieceTitle,
+      movements: movementNames,
       status,
-      startedDate: startedDate || null,
-    });
+      date: status === "Want to learn" ? "—" : (startedDate || new Date().toISOString().split("T")[0]),
+    };
+
+    onAdd?.(newPiece);
     handleReset();
     setOpen(false);
   };
@@ -115,6 +144,8 @@ export function AddPieceDialog() {
   const composerOptions = composers.map(c => ({ value: c.id.toString(), label: c.name }));
   const pieceOptions = pieces.map(p => ({ value: p.id.toString(), label: p.title }));
   const movementOptions = movements.map(m => ({ value: m.id.toString(), label: m.name }));
+
+  const isWantToLearn = status === "Want to learn";
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
@@ -191,11 +222,13 @@ export function AddPieceDialog() {
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label>Started</Label>
+            <Label className={isWantToLearn ? "text-muted-foreground" : ""}>Started</Label>
             <Input 
               type="date" 
               value={startedDate} 
               onChange={(e) => setStartedDate(e.target.value)}
+              disabled={isWantToLearn}
+              className={isWantToLearn ? "opacity-40" : ""}
               data-testid="input-started-date"
             />
           </div>

@@ -2,11 +2,12 @@ import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { PianoAvatar } from "@/components/piano-avatars";
-import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2 } from "lucide-react";
+import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AddPieceDialog } from "@/components/add-piece-dialog";
+import { AddPieceDialog, type NewPieceData } from "@/components/add-piece-dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,9 @@ import { getStatusColor } from "@/lib/status-colors";
 import { Link } from "wouter";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useState } from "react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 const genreData = [
   { genre: "Baroque", value: 50 },
@@ -46,22 +50,37 @@ const activityLog = [
   { id: 3, type: "performance", piece: "Liszt - Sonata in B minor", location: "Carnegie Hall", date: "1 month ago" },
 ];
 
-const mockRepertoire = [
-  { id: "1260", composer: "Frédéric Chopin", piece: "Ballade no. 4 in F minor Op. 52", movements: [] as string[], status: "Learning", date: "2024-02-01" },
+type RepertoireItem = {
+  id: string;
+  composer: string;
+  piece: string;
+  movements: string[];
+  status: string;
+  date: string;
+};
+
+const initialRepertoire: RepertoireItem[] = [
+  { id: "1260", composer: "Frédéric Chopin", piece: "Ballade no. 4 in F minor Op. 52", movements: [], status: "Learning", date: "2024-02-01" },
   { id: "2219", composer: "Sergei Rachmaninoff", piece: "Préludes Op. 23", movements: ["No. 5 G minor"], status: "Performance-ready", date: "2023-11-15" },
   { id: "2055", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movements: ["No. 1 Ondine"], status: "Polishing", date: "2024-01-10" },
   { id: "1997", composer: "Ludwig van Beethoven", piece: "Sonata no. 23 in F minor Op. 57 (Appassionata)", movements: ["1. Allegro assai", "2. Andante con moto", "3. Allegro ma non troppo"], status: "Performance-ready", date: "2023-08-20" },
-  { id: "1103", composer: "Franz Liszt", piece: "Sonata in B minor S. 178", movements: [] as string[], status: "Shelved", date: "2023-05-12" },
+  { id: "1103", composer: "Franz Liszt", piece: "Sonata in B minor S. 178", movements: [], status: "Shelved", date: "2023-05-12" },
   { id: "1791", composer: "Johann Sebastian Bach", piece: "The Well-Tempered Clavier, Book 1 BWV 846–869", movements: ["2. C minor, BWV 847, Prelude", "2. C minor, BWV 847, Fugue"], status: "Polishing", date: "2023-12-01" },
   { id: "262", composer: "Claude Debussy", piece: "Images, Série 1", movements: ["No. 1 Reflets dans l'eau"], status: "Learning", date: "2024-01-25" },
-  { id: "220", composer: "Alexander Scriabin", piece: "Sonata no. 5 Op. 53", movements: [] as string[], status: "Want to learn", date: "—" },
+  { id: "220", composer: "Alexander Scriabin", piece: "Sonata no. 5 Op. 53", movements: [], status: "Want to learn", date: "—" },
 ];
 
 export default function ProfilePage() {
+  const [repertoire, setRepertoire] = useState<RepertoireItem[]>(initialRepertoire);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [sortConfig, setSortConfig] = useState<{ key: keyof typeof mockRepertoire[0], direction: 'asc' | 'desc' } | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ key: keyof RepertoireItem, direction: 'asc' | 'desc' } | null>(null);
 
-  const handleSort = (key: keyof typeof mockRepertoire[0]) => {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor)
+  );
+
+  const handleSort = (key: keyof RepertoireItem) => {
     let direction: 'asc' | 'desc' = 'asc';
     if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
       direction = 'desc';
@@ -69,7 +88,7 @@ export default function ProfilePage() {
     setSortConfig({ key, direction });
   };
 
-  const sortedRepertoire = [...mockRepertoire].sort((a, b) => {
+  const sortedRepertoire = [...repertoire].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
     const valA = key === "movements" ? a[key].join(", ") : a[key];
@@ -80,6 +99,21 @@ export default function ProfilePage() {
   });
 
   const visibleRepertoire = isExpanded ? sortedRepertoire : sortedRepertoire.slice(0, 3);
+
+  const handleAddPiece = (piece: NewPieceData) => {
+    setRepertoire(prev => [piece, ...prev]);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setRepertoire((items) => {
+        const oldIndex = items.findIndex((i) => i.id === active.id);
+        const newIndex = items.findIndex((i) => i.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
 
   return (
     <Layout>
@@ -156,47 +190,52 @@ export default function ProfilePage() {
                       <TabsTrigger value="performance">Ready</TabsTrigger>
                     </TabsList>
                     
-                    <AddPieceDialog />
+                    <AddPieceDialog onAdd={handleAddPiece} />
                   </div>
                 </div>
 
                 <div className="space-y-4 mb-12">
                   <Card className="border-none shadow-sm overflow-hidden">
-                    <Table>
-                      <TableHeader className="bg-muted/30">
-                        <TableRow>
-                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('composer')}>
-                            <div className="flex items-center gap-2">Composer <ArrowUpDown className="w-3 h-3" /></div>
-                          </TableHead>
-                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('piece')}>
-                            <div className="flex items-center gap-2">Piece <ArrowUpDown className="w-3 h-3" /></div>
-                          </TableHead>
-                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('movements')}>
-                            <div className="flex items-center gap-2">Movement(s) <ArrowUpDown className="w-3 h-3" /></div>
-                          </TableHead>
-                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('status')}>
-                            <div className="flex items-center gap-2">Status <ArrowUpDown className="w-3 h-3" /></div>
-                          </TableHead>
-                          <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('date')}>
-                            <div className="flex items-center gap-2">Started <ArrowUpDown className="w-3 h-3" /></div>
-                          </TableHead>
-                          <TableHead className="w-[50px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {visibleRepertoire.map((item) => (
-                          <RepertoireRow 
-                            key={item.id}
-                            id={item.id}
-                            composer={item.composer}
-                            piece={item.piece}
-                            movements={item.movements}
-                            status={item.status}
-                            date={item.date}
-                          />
-                        ))}
-                      </TableBody>
-                    </Table>
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <Table>
+                        <TableHeader className="bg-muted/30">
+                          <TableRow>
+                            <TableHead className="w-[40px]"></TableHead>
+                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('composer')}>
+                              <div className="flex items-center gap-2">Composer <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('piece')}>
+                              <div className="flex items-center gap-2">Piece <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('movements')}>
+                              <div className="flex items-center gap-2">Movement(s) <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('status')}>
+                              <div className="flex items-center gap-2">Status <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => handleSort('date')}>
+                              <div className="flex items-center gap-2">Started <ArrowUpDown className="w-3 h-3" /></div>
+                            </TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <SortableContext items={visibleRepertoire.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                          <TableBody>
+                            {visibleRepertoire.map((item) => (
+                              <SortableRepertoireRow 
+                                key={item.id}
+                                id={item.id}
+                                composer={item.composer}
+                                piece={item.piece}
+                                movements={item.movements}
+                                status={item.status}
+                                date={item.date}
+                              />
+                            ))}
+                          </TableBody>
+                        </SortableContext>
+                      </Table>
+                    </DndContext>
                   </Card>
                   
                   <div className="flex justify-center">
@@ -320,12 +359,38 @@ export default function ProfilePage() {
   );
 }
 
-function RepertoireRow({ composer, piece, movements, status: initialStatus, date, id }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string }) {
+function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string }) {
   const [status, setStatus] = useState(initialStatus);
+  const [date, setDate] = useState(initialDate);
   const [movementsExpanded, setMovementsExpanded] = useState(false);
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <TableRow className="group hover:bg-muted/20 transition-colors">
+    <TableRow ref={setNodeRef} style={style} className="group hover:bg-muted/20 transition-colors">
+      <TableCell className="w-[40px] px-2">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors touch-none"
+          data-testid={`drag-handle-${id}`}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      </TableCell>
       <TableCell className="font-semibold text-primary">
         <Link href={`/piece/${id}`}>{composer}</Link>
       </TableCell>
@@ -371,7 +436,19 @@ function RepertoireRow({ composer, piece, movements, status: initialStatus, date
           </SelectContent>
         </Select>
       </TableCell>
-      <TableCell className="text-sm text-muted-foreground">{date}</TableCell>
+      <TableCell onClick={(e) => e.stopPropagation()}>
+        {status === "Want to learn" ? (
+          <span className="text-sm text-muted-foreground">—</span>
+        ) : (
+          <Input
+            type="date"
+            value={date === "—" ? "" : date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-8 w-[140px] text-sm border-none shadow-none bg-transparent hover:bg-muted/30 focus:bg-muted/30 transition-colors"
+            data-testid={`input-date-${id}`}
+          />
+        )}
+      </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
         <AlertDialog>
           <AlertDialogTrigger asChild>
