@@ -142,6 +142,67 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(409).json({ error: "Username already taken" });
+      }
+      const user = await storage.createUser({ username, password });
+      res.status(201).json({ id: user.id, username: user.username });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to register" });
+    }
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ error: "Username and password are required" });
+      }
+      const user = await storage.getUserByUsername(username);
+      if (!user || user.password !== password) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      res.json({ id: user.id, username: user.username });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to login" });
+    }
+  });
+
+  app.post("/api/users/:userId/profile", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const profile = await storage.createUserProfile({ ...req.body, userId });
+      res.status(201).json(profile);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create profile" });
+    }
+  });
+
+  app.post("/api/users/:userId/repertoire", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const entries = req.body.entries as Array<{ composerId: number; pieceId: number; movementId?: number; status: string; startedDate?: string }>;
+      if (!entries || !Array.isArray(entries)) {
+        return res.status(400).json({ error: "entries array is required" });
+      }
+      const created = [];
+      for (const entry of entries) {
+        const result = await storage.createRepertoireEntry({ ...entry, userId });
+        created.push(result);
+      }
+      res.status(201).json(created);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create repertoire entries" });
+    }
+  });
+
   app.get("/api/users/lookup/:username", async (req, res) => {
     try {
       const username = req.params.username;

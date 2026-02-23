@@ -47,6 +47,7 @@ export interface IStorage {
   getActiveChallenges(): Promise<Challenge[]>;
   getRecordingPosts(limit?: number): Promise<any[]>;
   getUserProfile(userId: string): Promise<UserProfile | undefined>;
+  createUserProfile(profile: InsertUserProfile): Promise<UserProfile>;
   getFollowing(userId: string): Promise<string[]>;
   getSuggestedUsers(userId: string, limit?: number): Promise<any[]>;
   
@@ -254,6 +255,11 @@ export class DatabaseStorage implements IStorage {
   async getUserProfile(userId: string): Promise<UserProfile | undefined> {
     const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
     return profile;
+  }
+
+  async createUserProfile(profile: InsertUserProfile): Promise<UserProfile> {
+    const [newProfile] = await db.insert(userProfiles).values(profile).returning();
+    return newProfile;
   }
 
   async getFollowing(userId: string): Promise<string[]> {

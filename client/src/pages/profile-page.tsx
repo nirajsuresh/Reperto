@@ -21,12 +21,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import { getStatusColor } from "@/lib/status-colors";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const genreData = [
   { genre: "Baroque", value: 50 },
@@ -59,19 +61,54 @@ type RepertoireItem = {
   date: string;
 };
 
-const initialRepertoire: RepertoireItem[] = [
-  { id: "1260", composer: "Frédéric Chopin", piece: "Ballade no. 4 in F minor Op. 52", movements: [], status: "Learning", date: "2024-02-01" },
-  { id: "2219", composer: "Sergei Rachmaninoff", piece: "Préludes Op. 23", movements: ["No. 5 G minor"], status: "Performance-ready", date: "2023-11-15" },
-  { id: "2055", composer: "Maurice Ravel", piece: "Gaspard de la nuit", movements: ["No. 1 Ondine"], status: "Polishing", date: "2024-01-10" },
-  { id: "1997", composer: "Ludwig van Beethoven", piece: "Sonata no. 23 in F minor Op. 57 (Appassionata)", movements: ["1. Allegro assai", "2. Andante con moto", "3. Allegro ma non troppo"], status: "Performance-ready", date: "2023-08-20" },
-  { id: "1103", composer: "Franz Liszt", piece: "Sonata in B minor S. 178", movements: [], status: "Shelved", date: "2023-05-12" },
-  { id: "1791", composer: "Johann Sebastian Bach", piece: "The Well-Tempered Clavier, Book 1 BWV 846–869", movements: ["2. C minor, BWV 847, Prelude", "2. C minor, BWV 847, Fugue"], status: "Polishing", date: "2023-12-01" },
-  { id: "262", composer: "Claude Debussy", piece: "Images, Série 1", movements: ["No. 1 Reflets dans l'eau"], status: "Learning", date: "2024-01-25" },
-  { id: "220", composer: "Alexander Scriabin", piece: "Sonata no. 5 Op. 53", movements: [], status: "Want to learn", date: "—" },
-];
+function groupRepertoireData(raw: any[]): RepertoireItem[] {
+  const grouped = new Map<number, RepertoireItem>();
+  for (const entry of raw) {
+    const pieceId = entry.pieceId;
+    if (!grouped.has(pieceId)) {
+      grouped.set(pieceId, {
+        id: String(entry.id),
+        composer: entry.composerName,
+        piece: entry.pieceTitle,
+        movements: [],
+        status: entry.status,
+        date: entry.startedDate || "—",
+      });
+    }
+    if (entry.movementName) {
+      grouped.get(pieceId)!.movements.push(entry.movementName);
+    }
+  }
+  return Array.from(grouped.values());
+}
 
 export default function ProfilePage() {
-  const [repertoire, setRepertoire] = useState<RepertoireItem[]>(initialRepertoire);
+  const [, navigate] = useLocation();
+  const userId = localStorage.getItem("userId");
+
+  useEffect(() => {
+    if (!userId) {
+      navigate("/auth");
+    }
+  }, [userId, navigate]);
+
+  const { data: profile, isLoading: profileLoading } = useQuery({
+    queryKey: [`/api/users/${userId}/profile`],
+    enabled: !!userId,
+  });
+
+  const { data: rawRepertoire, isLoading: repertoireLoading } = useQuery<any[]>({
+    queryKey: [`/api/repertoire/${userId}`],
+    enabled: !!userId,
+  });
+
+  const [repertoire, setRepertoire] = useState<RepertoireItem[]>([]);
+
+  useEffect(() => {
+    if (rawRepertoire) {
+      setRepertoire(groupRepertoireData(rawRepertoire));
+    }
+  }, [rawRepertoire]);
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RepertoireItem, direction: 'asc' | 'desc' } | null>(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -122,6 +159,16 @@ export default function ProfilePage() {
     }
   };
 
+  const profileData = profile as any;
+  const displayName = profileData?.displayName || "Profile";
+  const instrument = profileData?.instrument || "";
+  const level = profileData?.level || "";
+  const location = profileData?.location || "";
+  const bio = profileData?.bio || "";
+  const avatarUrl = profileData?.avatarUrl || "avatar-8";
+
+  if (!userId) return null;
+
   return (
     <Layout>
       <div className="min-h-screen bg-background pb-20">
@@ -131,14 +178,28 @@ export default function ProfilePage() {
 
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col md:flex-row items-center gap-4 py-4">
-            <PianoAvatar avatarId="avatar-8" size={80} className="border-3 border-background shadow-lg shrink-0 -mt-10" />
+            <PianoAvatar avatarId={avatarUrl} size={80} className="border-3 border-background shadow-lg shrink-0 -mt-10" />
             
             <div className="flex-1 text-center md:text-left">
-              <h1 className="font-serif text-2xl font-bold text-primary">Niraj Suresh</h1>
+              {profileLoading ? (
+                <Skeleton className="h-8 w-48 mb-2" />
+              ) : (
+                <h1 className="font-serif text-2xl font-bold text-primary" data-testid="text-display-name">{displayName}</h1>
+              )}
               <div className="flex flex-col md:flex-row items-center gap-2 text-muted-foreground text-sm">
-                <span className="flex items-center gap-1 font-medium"><span className="text-accent-foreground">Piano</span> • Serious Amateur</span>
-                <span className="hidden md:inline">•</span>
-                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Boston, USA</span>
+                {profileLoading ? (
+                  <Skeleton className="h-4 w-64" />
+                ) : (
+                  <>
+                    {instrument && <span className="flex items-center gap-1 font-medium"><span className="text-accent-foreground">{instrument}</span>{level && ` • ${level}`}</span>}
+                    {location && (
+                      <>
+                        <span className="hidden md:inline">•</span>
+                        <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {location}</span>
+                      </>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
@@ -156,11 +217,16 @@ export default function ProfilePage() {
                   <CardTitle className="text-lg">About</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">
-                    Classical pianist specializing in the Romantic and Impressionist eras. 
-                    Alumnus of the Conservatorio di Milano. Currently focused on the complete 
-                    cycle of Chopin Ballades and exploring Ravel's piano works.
-                  </p>
+                  {profileLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground leading-relaxed" data-testid="text-bio">
+                      {bio || "No bio yet."}
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 

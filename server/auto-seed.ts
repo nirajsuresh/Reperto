@@ -82,7 +82,7 @@ export async function autoSeedIfEmpty() {
 async function seedCommunityData() {
   try {
     const userData = [
-      { username: "niraj_suresh", password: "hashedpassword1" },
+      { username: "niraj_suresh", password: "password" },
       { username: "maria_chen", password: "hashedpassword2" },
       { username: "alex_petrov", password: "hashedpassword3" },
       { username: "elena_volkov", password: "hashedpassword4" },
@@ -202,8 +202,35 @@ async function seedCommunityData() {
         { userId: userMap.get("elena_volkov")!, composerId: chopinId, pieceId: ballade4.id, status: "Learned", startedDate: "2022-01-10" },
         { userId: userMap.get("david_kim")!, composerId: chopinId, pieceId: ballade4.id, status: "Wishlist" },
         { userId: userMap.get("sophia_martin")!, composerId: chopinId, pieceId: ballade4.id, status: "In Progress", startedDate: "2025-11-01" },
-        { userId: userMap.get("niraj_suresh")!, composerId: chopinId, pieceId: ballade4.id, status: "In Progress", startedDate: "2025-01-20" },
+        { userId: userMap.get("niraj_suresh")!, composerId: chopinId, pieceId: ballade4.id, status: "Learning", startedDate: "2024-02-01" },
       ];
+
+      if (lisztSonata) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Franz Liszt")!, pieceId: lisztSonata.id, status: "Shelved", startedDate: "2023-05-12" });
+      }
+      if (debussyImages) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Claude Debussy")!, pieceId: debussyImages.id, status: "Learning", startedDate: "2024-01-25" });
+      }
+      const rachPreludes = findPiece("Sergei Rachmaninoff", "Préludes Op. 23");
+      if (rachPreludes) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Sergei Rachmaninoff")!, pieceId: rachPreludes.id, status: "Performance-ready", startedDate: "2023-11-15" });
+      }
+      const beethovenAppass = findPiece("Ludwig van Beethoven", "Sonata no. 23");
+      if (beethovenAppass) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Ludwig van Beethoven")!, pieceId: beethovenAppass.id, status: "Performance-ready", startedDate: "2023-08-20" });
+      }
+      const bachWTC = findPiece("Johann Sebastian Bach", "Well-Tempered Clavier, Book 1");
+      if (bachWTC) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Johann Sebastian Bach")!, pieceId: bachWTC.id, status: "Polishing", startedDate: "2023-12-01" });
+      }
+      const scriabinSonata5 = findPiece("Alexander Scriabin", "Sonata no. 5");
+      if (scriabinSonata5) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: composerMap.get("Alexander Scriabin")!, pieceId: scriabinSonata5.id, status: "Want to learn" });
+      }
+
+      if (gaspard) {
+        repertoireData.push({ userId: userMap.get("niraj_suresh")!, composerId: ravelId, pieceId: gaspard.id, status: "Polishing", startedDate: "2024-01-10" });
+      }
       if (gaspard) {
         repertoireData.push(
           { userId: userMap.get("maria_chen")!, composerId: ravelId, pieceId: gaspard.id, status: "In Progress", startedDate: "2025-10-01" },

@@ -189,6 +189,12 @@ export default function ProfileSetup() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
   const [avatarId, setAvatarId] = useState("avatar-1");
+  const [displayName, setDisplayName] = useState("");
+  const [instrument, setInstrument] = useState("");
+  const [level, setLevel] = useState("");
+  const [bio, setBio] = useState("");
+  const [location, setLocationField] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const totalSteps = 3;
 
   const [repertoire, setRepertoire] = useState<RepertoireRow[]>([
@@ -209,11 +215,70 @@ export default function ProfileSetup() {
     setRepertoire(repertoire.map(row => row.id === id ? { ...row, [field]: value } : row));
   };
 
+  const handleCompleteSetup = async () => {
+    const userId = localStorage.getItem("userId");
+    if (!userId) {
+      setLocation("/auth");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await fetch(`/api/users/${userId}/profile`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: displayName || "Anonymous",
+          instrument: instrument || null,
+          level: level || null,
+          bio: bio || null,
+          location: location || null,
+          avatarUrl: avatarId || null,
+        }),
+      });
+
+      const validEntries = repertoire
+        .filter(row => row.composerId && row.pieceId)
+        .flatMap(row => {
+          const movementIds = row.movementIds ? row.movementIds.split(",").filter(Boolean) : [];
+          if (movementIds.length > 0) {
+            return movementIds.map(mId => ({
+              composerId: parseInt(row.composerId),
+              pieceId: parseInt(row.pieceId),
+              movementId: parseInt(mId),
+              status: row.status,
+              startedDate: row.dateStarted || undefined,
+            }));
+          }
+          return [{
+            composerId: parseInt(row.composerId),
+            pieceId: parseInt(row.pieceId),
+            status: row.status,
+            startedDate: row.dateStarted || undefined,
+          }];
+        });
+
+      if (validEntries.length > 0) {
+        await fetch(`/api/users/${userId}/repertoire`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entries: validEntries }),
+        });
+      }
+
+      setLocation("/profile");
+    } catch (error) {
+      console.error("Failed to save profile:", error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleNext = () => {
     if (step < totalSteps) {
       setStep(step + 1);
     } else {
-      setLocation("/profile");
+      handleCompleteSetup();
     }
   };
 
@@ -260,12 +325,12 @@ export default function ProfileSetup() {
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="display-name">Display Name</Label>
-                    <Input id="display-name" placeholder="e.g. Elena Corvin" className="h-12 bg-background" />
+                    <Input id="display-name" placeholder="e.g. Elena Corvin" className="h-12 bg-background" value={displayName} onChange={(e) => setDisplayName(e.target.value)} data-testid="input-display-name" />
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="instrument">Primary Instrument</Label>
-                    <Select>
-                      <SelectTrigger className="h-12 bg-background">
+                    <Select value={instrument} onValueChange={setInstrument}>
+                      <SelectTrigger className="h-12 bg-background" data-testid="select-instrument">
                         <SelectValue placeholder="Select instrument" />
                       </SelectTrigger>
                       <SelectContent>
@@ -281,8 +346,8 @@ export default function ProfileSetup() {
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="level">Experience Level</Label>
-                    <Select>
-                      <SelectTrigger className="h-12 bg-background">
+                    <Select value={level} onValueChange={setLevel}>
+                      <SelectTrigger className="h-12 bg-background" data-testid="select-level">
                         <SelectValue placeholder="Select level" />
                       </SelectTrigger>
                       <SelectContent>
@@ -305,11 +370,14 @@ export default function ProfileSetup() {
                       id="bio" 
                       placeholder="Share your musical background, education, and current focus..." 
                       className="min-h-[150px] bg-background resize-none leading-relaxed"
+                      value={bio}
+                      onChange={(e) => setBio(e.target.value)}
+                      data-testid="input-bio"
                     />
                   </div>
                   <div className="space-y-3">
                     <Label htmlFor="location">Based In</Label>
-                    <Input id="location" placeholder="e.g. New York, NY" className="h-12 bg-background" />
+                    <Input id="location" placeholder="e.g. New York, NY" className="h-12 bg-background" value={location} onChange={(e) => setLocationField(e.target.value)} data-testid="input-location" />
                   </div>
                 </div>
               )}
@@ -361,8 +429,8 @@ export default function ProfileSetup() {
                 >
                   Back
                 </Button>
-                <Button onClick={handleNext} size="lg" className="min-w-[140px]">
-                  {step === totalSteps ? "Complete Setup" : "Next"}
+                <Button onClick={handleNext} size="lg" className="min-w-[140px]" disabled={submitting} data-testid="button-next">
+                  {submitting ? "Saving..." : step === totalSteps ? "Complete Setup" : "Next"}
                 </Button>
               </div>
             </CardContent>
