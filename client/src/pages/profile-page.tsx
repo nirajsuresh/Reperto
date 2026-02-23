@@ -74,6 +74,7 @@ export default function ProfilePage() {
   const [repertoire, setRepertoire] = useState<RepertoireItem[]>(initialRepertoire);
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RepertoireItem, direction: 'asc' | 'desc' } | null>(null);
+  const [activeTab, setActiveTab] = useState("all");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -88,7 +89,13 @@ export default function ProfilePage() {
     setSortConfig({ key, direction });
   };
 
-  const sortedRepertoire = [...repertoire].sort((a, b) => {
+  const filteredRepertoire = repertoire.filter((item) => {
+    if (activeTab === "active") return item.status === "Learning" || item.status === "Polishing";
+    if (activeTab === "performance") return item.status === "Performance-ready";
+    return true;
+  });
+
+  const sortedRepertoire = [...filteredRepertoire].sort((a, b) => {
     if (!sortConfig) return 0;
     const { key, direction } = sortConfig;
     const valA = key === "movements" ? a[key].join(", ") : a[key];
@@ -177,13 +184,24 @@ export default function ProfilePage() {
             </div>
 
             <div className="lg:col-span-3">
-              <Tabs defaultValue="all" className="w-full">
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-4">
                     <Music2 className="w-6 h-6 text-primary" />
                     <h2 className="font-serif text-2xl font-bold">Repertoire</h2>
                   </div>
                   <div className="flex items-center gap-4">
+                    {sortConfig ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSortConfig(null)}
+                        className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                        data-testid="button-custom-order"
+                      >
+                        <GripVertical className="w-3 h-3" /> Custom order
+                      </Button>
+                    ) : null}
                     <TabsList className="bg-background border">
                       <TabsTrigger value="all">All Pieces</TabsTrigger>
                       <TabsTrigger value="active">Active</TabsTrigger>
@@ -195,19 +213,6 @@ export default function ProfilePage() {
                 </div>
 
                 <div className="space-y-4 mb-12">
-                  {sortConfig && (
-                    <div className="flex justify-end mb-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSortConfig(null)}
-                        className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
-                        data-testid="button-custom-order"
-                      >
-                        <GripVertical className="w-3 h-3" /> Custom order
-                      </Button>
-                    </div>
-                  )}
                   <Card className="border-none shadow-sm overflow-hidden">
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                       <Table>
