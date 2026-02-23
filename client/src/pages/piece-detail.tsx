@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Music2, Calendar, Clock, Link as LinkIcon, Plus, ChevronDown, ChevronUp, ArrowLeft, FileText, Upload, X, Star, ExternalLink, Users, MessageCircle, TrendingUp } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, useParams } from "wouter";
 import { cn } from "@/lib/utils";
 import { ObjectUploader } from "@/components/ObjectUploader";
@@ -61,6 +61,13 @@ export default function PieceDetailPage() {
 
   const [status, setStatus] = useState("Learning");
   const [scoreFile, setScoreFile] = useState<{ name: string; path: string } | null>(null);
+  const [showNewSession, setShowNewSession] = useState(false);
+  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [sessionType, setSessionType] = useState("Practice");
+  const [sessionDuration, setSessionDuration] = useState("");
+  const [sessionNotes, setSessionNotes] = useState("");
+  const [sessionMedia, setSessionMedia] = useState("");
+  const newSessionRef = useRef<HTMLDivElement>(null);
   const [notes, setNotes] = useState([
     { id: 1, date: "2025-02-05", time: "2.5", type: "Practice" as const, content: "Mastering the polyrhythms in the C section. Focus on left-hand clarity in the descending runs.", media: "https://vimeo.com/..." },
     { id: 2, date: "2025-02-03", time: "3.0", type: "Practice" as const, content: "Memory work for the coda. Practicing jump accuracy at tempo.", media: "" },
@@ -377,19 +384,19 @@ export default function PieceDetailPage() {
           <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="border-none shadow-sm overflow-hidden">
               <CardContent className="pt-6 pb-4 flex flex-col items-center text-center">
-                <span className="text-4xl font-bold text-foreground" data-testid="text-metric-sessions">47</span>
+                <span className="text-4xl font-bold text-foreground" data-testid="text-metric-sessions">{notes.length}</span>
                 <span className="text-sm text-muted-foreground mt-1">Practice Sessions</span>
               </CardContent>
             </Card>
             <Card className="border-none shadow-sm overflow-hidden">
               <CardContent className="pt-6 pb-4 flex flex-col items-center text-center">
-                <span className="text-4xl font-bold text-primary" data-testid="text-metric-hours">86.5</span>
+                <span className="text-4xl font-bold text-primary" data-testid="text-metric-hours">{notes.reduce((sum, n) => sum + parseFloat(n.time || "0"), 0).toFixed(1)}</span>
                 <span className="text-sm text-muted-foreground mt-1">Hours Practiced</span>
               </CardContent>
             </Card>
             <Card className="border-none shadow-sm overflow-hidden">
               <CardContent className="pt-6 pb-4 flex flex-col items-center text-center">
-                <span className="text-4xl font-bold text-foreground" data-testid="text-metric-recordings">5</span>
+                <span className="text-4xl font-bold text-foreground" data-testid="text-metric-recordings">{notes.filter(n => n.media).length}</span>
                 <span className="text-sm text-muted-foreground mt-1">Recordings Posted</span>
               </CardContent>
             </Card>
@@ -399,8 +406,14 @@ export default function PieceDetailPage() {
             <div className="lg:col-span-3 space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="font-serif text-2xl font-bold" data-testid="text-practice-log-title">Practice & Performance Log</h2>
-                <Button size="sm" className="gap-2" data-testid="button-add-session">
-                  <Plus className="w-4 h-4" /> Add Session
+                <Button size="sm" className="gap-2" data-testid="button-add-session" onClick={() => {
+                  setShowNewSession(!showNewSession);
+                  if (!showNewSession) {
+                    setTimeout(() => newSessionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+                  }
+                }}>
+                  {showNewSession ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                  {showNewSession ? "Cancel" : "Add Session"}
                 </Button>
               </div>
 
@@ -439,44 +452,64 @@ export default function PieceDetailPage() {
                 </Table>
               </Card>
 
-              <Card className="border-none shadow-sm bg-accent/5">
-                <CardHeader>
-                  <CardTitle className="text-lg">New Session</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label>Date</Label>
-                      <Input type="date" data-testid="input-session-date" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Type</Label>
-                      <Select defaultValue="Practice">
-                        <SelectTrigger data-testid="select-session-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Practice">Practice</SelectItem>
-                          <SelectItem value="Performance">Performance</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Duration (hours)</Label>
-                      <Input type="number" step="0.5" placeholder="1.5" data-testid="input-session-duration" />
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Notes</Label>
-                    <Textarea placeholder="Focus points: Voicing, Jump accuracy, Rubato..." className="min-h-[100px]" data-testid="input-session-notes" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Recording Link</Label>
-                    <Input placeholder="https://..." data-testid="input-session-media" />
-                  </div>
-                  <Button className="w-full" data-testid="button-save-session">Save Entry</Button>
-                </CardContent>
-              </Card>
+              {showNewSession && (
+                <div ref={newSessionRef}>
+                  <Card className="border-none shadow-sm bg-[#d4967c]/5">
+                    <CardHeader>
+                      <CardTitle className="text-lg">New Session</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label>Date</Label>
+                          <Input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} data-testid="input-session-date" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Type</Label>
+                          <Select value={sessionType} onValueChange={setSessionType}>
+                            <SelectTrigger data-testid="select-session-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Practice">Practice</SelectItem>
+                              <SelectItem value="Performance">Performance</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Duration (hours)</Label>
+                          <Input type="number" step="0.5" min="0" placeholder="1.5" value={sessionDuration} onChange={(e) => setSessionDuration(e.target.value)} data-testid="input-session-duration" />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Notes</Label>
+                        <Textarea placeholder="Focus points: Voicing, Jump accuracy, Rubato..." className="min-h-[100px]" value={sessionNotes} onChange={(e) => setSessionNotes(e.target.value)} data-testid="input-session-notes" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Recording Link</Label>
+                        <Input placeholder="https://..." value={sessionMedia} onChange={(e) => setSessionMedia(e.target.value)} data-testid="input-session-media" />
+                      </div>
+                      <Button className="w-full" data-testid="button-save-session" disabled={!sessionDate || !sessionDuration} onClick={() => {
+                        const newEntry = {
+                          id: Math.max(...notes.map(n => n.id), 0) + 1,
+                          date: sessionDate,
+                          time: sessionDuration,
+                          type: sessionType as "Practice" | "Performance",
+                          content: sessionNotes,
+                          media: sessionMedia,
+                        };
+                        setNotes([newEntry, ...notes]);
+                        setSessionDate(new Date().toISOString().split("T")[0]);
+                        setSessionType("Practice");
+                        setSessionDuration("");
+                        setSessionNotes("");
+                        setSessionMedia("");
+                        setShowNewSession(false);
+                      }}>Save Entry</Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
 
             <div className="lg:col-span-2">
