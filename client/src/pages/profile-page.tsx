@@ -222,7 +222,7 @@ export default function ProfilePage() {
                         <div className="flex items-center gap-4">
                           <div className={cn(
                             "w-2 h-2 rounded-full",
-                            log.type === "start" ? "bg-blue-500" : log.type === "ready" ? "bg-green-500" : "bg-accent-foreground"
+                            log.type === "start" ? "bg-[#c47a5a]" : log.type === "ready" ? "bg-[#8b7040]" : "bg-[#7a6e60]"
                           )} />
                           <p className="text-sm">
                             {log.type === "start" && <>You started <span className="font-serif italic font-bold">{log.piece}</span>!</>}

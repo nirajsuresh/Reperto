@@ -136,27 +136,29 @@ export default function PieceDetailPage() {
 
   const getStatusColor = (s: string) => {
     switch(s) {
-      case "Performance-ready": return "bg-green-100 text-green-700 border-green-200";
-      case "In Progress": return "bg-blue-100 text-blue-700 border-blue-200";
-      case "Learned": return "bg-amber-100 text-amber-700 border-amber-200";
-      case "Wishlist": return "bg-slate-100 text-slate-600 border-slate-200";
+      case "Performance-ready": return "bg-[#e8ddd0] text-[#6b5230] border-[#d4c8b0]";
+      case "In Progress": return "bg-[#f5e0d4] text-[#8b4a2a] border-[#e8c4ae]";
+      case "Learned": return "bg-[#ede4d4] text-[#7a5c30] border-[#ddd0b8]";
+      case "Wishlist": return "bg-[#ede8e0] text-[#8a7e6e] border-[#ddd6cc]";
+      case "Re-learning": return "bg-[#f0d8cc] text-[#8b4030] border-[#e4c0ae]";
+      case "Stopped learning": return "bg-[#e8e0d8] text-[#7a6e60] border-[#d8cec4]";
       default: return "bg-muted text-muted-foreground";
     }
   };
 
   const getTypeColor = (t: string) => {
     return t === "Performance"
-      ? "bg-purple-100 text-purple-700"
-      : "bg-blue-50 text-blue-600";
+      ? "bg-[#e8ddd0] text-[#6b5230]"
+      : "bg-[#f5e0d4] text-[#8b4a2a]";
   };
 
   const statusColorMap: Record<string, string> = {
-    "Wishlist": "#94a3b8",
-    "In Progress": "#3b82f6",
-    "Learned": "#f59e0b",
-    "Performance-ready": "#22c55e",
-    "Re-learning": "#8b5cf6",
-    "Stopped learning": "#ef4444",
+    "Wishlist": "#b0a090",
+    "In Progress": "#c47a5a",
+    "Learned": "#a08040",
+    "Performance-ready": "#8b7040",
+    "Re-learning": "#b06040",
+    "Stopped learning": "#8a7e6e",
   };
 
   return (
