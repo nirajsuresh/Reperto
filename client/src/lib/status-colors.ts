@@ -1,9 +1,9 @@
 const statusBadgeColors: Record<string, string> = {
-  "Want to learn": "bg-[#b8c8bf]/20 text-[#5a6e62] border-[#b8c8bf]",
-  "Learning": "bg-[#8fa79a]/20 text-[#3d5a4e] border-[#8fa79a]",
-  "Polishing": "bg-[#d4967c]/20 text-[#8b5535] border-[#d4967c]",
-  "Performance-ready": "bg-[#c88264]/20 text-[#7a4530] border-[#c88264]",
-  "Shelved": "bg-[#8e8b88]/20 text-[#5a5855] border-[#8e8b88]",
+  "Want to learn": "bg-[#b8c8bf] text-black border-[#a0b5a8]",
+  "Learning": "bg-[#8fa79a] text-black border-[#7a9488]",
+  "Polishing": "bg-[#d4967c] text-black border-[#c4866c]",
+  "Performance-ready": "bg-[#c88264] text-black border-[#b87254]",
+  "Shelved": "bg-[#8e8b88] text-black border-[#7e7b78]",
 };
 
 const statusDotColors: Record<string, string> = {
