@@ -38,28 +38,51 @@ function StarRating({ rating, size = "md" }: { rating: number; size?: "sm" | "md
 
 function InteractiveStarRating({ rating, onRate, size = "md" }: { rating: number; onRate: (val: number) => void; size?: "sm" | "md" }) {
   const [hovered, setHovered] = useState(0);
-  const iconSize = size === "sm" ? "w-4 h-4" : "w-5 h-5";
+  const iconSize = size === "sm" ? 16 : 20;
+  const iconClass = size === "sm" ? "w-4 h-4" : "w-5 h-5";
   const display = hovered || rating;
+
+  const handleMouseMove = (star: number, e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isLeftHalf = e.clientX - rect.left < rect.width / 2;
+    setHovered(isLeftHalf ? star - 0.5 : star);
+  };
+
+  const handleClick = (star: number, e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isLeftHalf = e.clientX - rect.left < rect.width / 2;
+    onRate(isLeftHalf ? star - 0.5 : star);
+  };
+
   return (
     <div
       className="flex items-center gap-0.5"
       data-testid="interactive-star-rating"
       onMouseLeave={() => setHovered(0)}
     >
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          className={cn(
-            iconSize,
-            "cursor-pointer transition-colors",
-            star <= display
-              ? "fill-amber-400 text-amber-400"
-              : "text-muted-foreground/30 hover:text-amber-300"
-          )}
-          onMouseEnter={() => setHovered(star)}
-          onClick={() => onRate(star)}
-        />
-      ))}
+      {[1, 2, 3, 4, 5].map((star) => {
+        const filled = display >= star;
+        const halfFilled = !filled && display >= star - 0.5;
+        return (
+          <div
+            key={star}
+            className="relative cursor-pointer"
+            style={{ width: iconSize, height: iconSize }}
+            onMouseMove={(e) => handleMouseMove(star, e)}
+            onClick={(e) => handleClick(star, e)}
+          >
+            <Star className={cn(iconClass, "absolute inset-0 text-muted-foreground/30")} />
+            {filled && (
+              <Star className={cn(iconClass, "absolute inset-0 fill-amber-400 text-amber-400")} />
+            )}
+            {halfFilled && (
+              <div className="absolute inset-0 overflow-hidden" style={{ width: "50%" }}>
+                <Star className={cn(iconClass, "fill-amber-400 text-amber-400")} />
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

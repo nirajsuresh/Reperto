@@ -2,7 +2,7 @@ import { Layout } from "@/components/layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MapPin, Music2 } from "lucide-react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 
 const mockUsers = [
@@ -19,8 +19,7 @@ interface PieceResult {
 }
 
 export default function SearchPage() {
-  const [location] = useLocation();
-  const params = new URLSearchParams(location.split('?')[1]);
+  const params = new URLSearchParams(window.location.search);
   const query = params.get('q') || "";
 
   const filteredUsers = mockUsers.filter(u => 
