@@ -136,15 +136,6 @@ export function Footer() {
         </div>
         
         <div>
-          <h3 className="font-sans font-semibold mb-4 tracking-wide text-sm uppercase opacity-70">Platform</h3>
-          <ul className="space-y-3">
-            <li><Link href="#" className="hover:text-[#d4967c] transition-colors">Repertoire Tracker</Link></li>
-            <li><Link href="#" className="hover:text-[#d4967c] transition-colors">Musician Profiles</Link></li>
-            <li><Link href="#" className="hover:text-[#d4967c] transition-colors">Discover</Link></li>
-          </ul>
-        </div>
-        
-        <div>
           <h3 className="font-sans font-semibold mb-4 tracking-wide text-sm uppercase opacity-70">Company</h3>
           <ul className="space-y-3">
             <li><Link href="#" className="hover:text-[#d4967c] transition-colors">About Us</Link></li>
