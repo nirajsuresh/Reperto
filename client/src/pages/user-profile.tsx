@@ -89,7 +89,7 @@ export default function UserProfilePage() {
                       <TableRow key={item.id} className="hover:bg-muted/20 transition-colors">
                         <TableCell className="font-semibold text-primary">{item.composer}</TableCell>
                         <TableCell className="font-serif italic">{item.piece}</TableCell>
-                        <TableCell className="text-muted-foreground font-mono text-xs">{item.movement}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">{item.movement}</TableCell>
                         <TableCell>
                           <Badge variant="outline" className={`font-medium border shadow-none ${getStatusColor(item.status)}`}>
                             {item.status}

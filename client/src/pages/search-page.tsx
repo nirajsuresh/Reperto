@@ -72,7 +72,7 @@ export default function SearchPage() {
 
         {!hasResults && (
           <div className="text-center py-20 bg-muted/20 rounded-lg">
-            <p className="text-muted-foreground italic font-serif">No results found matching your search.</p>
+            <p className="text-muted-foreground italic">No results found matching your search.</p>
           </div>
         )}
 

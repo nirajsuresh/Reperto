@@ -285,7 +285,7 @@ export default function FeedPage() {
                 <Card className="bg-white/80">
                   <CardContent className="p-12 text-center">
                     <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="font-serif text-xl font-semibold mb-2">No posts yet</h3>
+                    <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
                     <p className="text-muted-foreground mb-4">Follow other musicians to see their updates here.</p>
                     <Link href="/search">
                       <Button variant="outline" data-testid="button-discover-musicians">

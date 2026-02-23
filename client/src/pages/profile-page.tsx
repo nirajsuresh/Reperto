@@ -153,7 +153,7 @@ export default function ProfilePage() {
             <div className="space-y-6 lg:col-span-1">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-serif">About</CardTitle>
+                  <CardTitle className="text-lg">About</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground leading-relaxed">
@@ -166,7 +166,7 @@ export default function ProfilePage() {
 
                <Card>
                 <CardHeader>
-                  <CardTitle className="text-lg font-serif">Upcoming</CardTitle>
+                  <CardTitle className="text-lg">Upcoming</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex gap-4 items-start">
@@ -315,7 +315,7 @@ export default function ProfilePage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <Card className="border-none shadow-sm">
                       <CardHeader>
-                        <CardTitle className="font-serif text-lg">Genre Representation</CardTitle>
+                        <CardTitle className="text-lg">Genre Representation</CardTitle>
                       </CardHeader>
                       <CardContent className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -336,7 +336,7 @@ export default function ProfilePage() {
 
                     <Card className="border-none shadow-sm">
                       <CardHeader>
-                        <CardTitle className="font-serif text-lg">Piece Length Distribution</CardTitle>
+                        <CardTitle className="text-lg">Piece Length Distribution</CardTitle>
                       </CardHeader>
                       <CardContent className="h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
@@ -425,7 +425,7 @@ function SortableRepertoireRow({ composer, piece, movements, status: initialStat
       <TableCell className="font-serif italic">
         <Link href={`/piece/${id}`}>{piece}</Link>
       </TableCell>
-      <TableCell className="text-muted-foreground font-mono text-xs">
+      <TableCell className="text-muted-foreground text-xs">
         {movements.length === 0 ? (
           "—"
         ) : movements.length === 1 ? (

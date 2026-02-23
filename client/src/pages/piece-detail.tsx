@@ -256,7 +256,7 @@ export default function PieceDetailPage() {
             <Card className="border-none shadow-sm overflow-hidden">
               <CardHeader className="bg-muted/30 pb-4">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg font-serif">Musical Analysis & Technique</CardTitle>
+                  <CardTitle className="text-lg">Musical Analysis & Technique</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
@@ -276,7 +276,7 @@ export default function PieceDetailPage() {
             <div className="lg:col-span-1">
               <Card className="border-none shadow-sm overflow-hidden h-full">
                 <CardHeader className="bg-muted/30 pb-4">
-                  <CardTitle className="text-lg font-serif flex items-center gap-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="w-5 h-5" />
                     Score
                   </CardTitle>
@@ -359,7 +359,7 @@ export default function PieceDetailPage() {
             <div className="lg:col-span-2">
               <Card className="border-none shadow-sm overflow-hidden h-full">
                 <CardHeader className="bg-muted/30 pb-4">
-                  <CardTitle className="text-lg font-serif flex items-center gap-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
                     <Users className="w-5 h-5" />
                     From the Community
                   </CardTitle>
@@ -558,7 +558,7 @@ export default function PieceDetailPage() {
             <div className="lg:col-span-2">
               <Card className="border-none shadow-sm overflow-hidden h-full">
                 <CardHeader className="bg-muted/30 pb-4">
-                  <CardTitle className="text-lg font-serif flex items-center gap-2">
+                  <CardTitle className="text-lg flex items-center gap-2">
                     <TrendingUp className="w-5 h-5" />
                     Your Progress
                   </CardTitle>
