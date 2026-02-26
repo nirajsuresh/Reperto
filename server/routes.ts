@@ -118,67 +118,36 @@ export async function registerRoutes(
         return res.status(503).json({ error: "AI service not configured" });
       }
 
-      res.writeHead(200, {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-      });
-      res.flushHeaders();
-
-      res.write(`event: meta\ndata: ${JSON.stringify({ wikiUrl })}\n\n`);
-
       const openai = new OpenAI({
         apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
         baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
       });
 
       const prompt = wikiExtract
-        ? `Based on the following Wikipedia content about "${piece.title}" by ${composerName}, write a concise musical analysis and technique summary (2-3 paragraphs) for a pianist. Focus on: historical context, musical characteristics (form, harmony, style), and technical demands. Do not include any headers or bullet points.\n\nWikipedia content:\n${wikiExtract}`
-        : `Write a concise musical analysis and technique summary (2-3 paragraphs) for "${piece.title}" by ${composerName}, intended for a pianist. Focus on: historical context, musical characteristics (form, harmony, style), and technical demands. Do not include any headers or bullet points. If you are not confident about the details of this specific piece, provide general context about the composer's style and typical technical demands of their works.`;
+        ? `Write a single short paragraph (3-5 sentences) describing "${piece.title}" by ${composerName}. Cover when it was composed, its musical character, and what makes it notable. Write as a factual encyclopedia-style description, not as a response to someone. Do not use headers, bullet points, or address the reader.\n\nReference material:\n${wikiExtract}`
+        : `Write a single short paragraph (3-5 sentences) describing "${piece.title}" by ${composerName}. Cover its musical character, style period, and what makes it notable for pianists. Write as a factual encyclopedia-style description, not as a response to someone. Do not use headers, bullet points, or address the reader.`;
 
-      let fullAnalysis = "";
+      let analysis: string;
       try {
-        const stream = await openai.chat.completions.create({
+        const completion = await openai.chat.completions.create({
           model: "gpt-5-nano",
           messages: [
-            { role: "system", content: "You are a knowledgeable classical music scholar writing for pianists. Be specific about musical details when possible. Write in flowing prose, not bullet points." },
+            { role: "system", content: "You write brief, factual descriptions of classical music pieces in the style of a music encyclopedia entry." },
             { role: "user", content: prompt },
           ],
-          max_completion_tokens: 8192,
-          stream: true,
+          max_completion_tokens: 300,
         });
-
-        for await (const chunk of stream) {
-          const text = chunk.choices[0]?.delta?.content;
-          if (text) {
-            fullAnalysis += text;
-            res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
-          }
-        }
+        analysis = completion.choices[0]?.message?.content ?? "Analysis not available.";
       } catch (aiError) {
-        console.error("OpenAI streaming error:", aiError);
-        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service temporarily unavailable." })}\n\n`);
-        res.end();
-        return;
+        console.error("OpenAI API error:", aiError);
+        return res.status(502).json({ error: "AI service temporarily unavailable. Please try again later." });
       }
 
-      if (!fullAnalysis.trim()) {
-        fullAnalysis = "Analysis not available.";
-      }
-
-      await storage.savePieceAnalysis({ pieceId, analysis: fullAnalysis, wikiUrl });
-
-      res.write(`event: done\ndata: {}\n\n`);
-      res.end();
+      const saved = await storage.savePieceAnalysis({ pieceId, analysis, wikiUrl });
+      res.json({ analysis: saved.analysis, wikiUrl: saved.wikiUrl });
     } catch (error) {
       console.error("Error generating piece analysis:", error);
-      if (!res.headersSent) {
-        res.status(500).json({ error: "Failed to generate analysis" });
-      } else {
-        res.write(`event: error\ndata: ${JSON.stringify({ error: "Failed to generate analysis" })}\n\n`);
-        res.end();
-      }
+      res.status(500).json({ error: "Failed to generate analysis" });
     }
   });
 

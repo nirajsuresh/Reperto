@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Music2, Calendar, Clock, Link as LinkIcon, Plus, ChevronDown, ChevronUp, ArrowLeft, FileText, Upload, X, Star, ExternalLink, Users, MessageCircle, TrendingUp } from "lucide-react";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef } from "react";
 import { Link, useParams } from "wouter";
 import { cn } from "@/lib/utils";
 import { getStatusColor, getStatusDotColor } from "@/lib/status-colors";
@@ -170,105 +170,16 @@ export default function PieceDetailPage() {
     },
   });
 
-  const [analysisText, setAnalysisText] = useState<string>("");
-  const [analysisWikiUrl, setAnalysisWikiUrl] = useState<string | null>(null);
-  const [isAnalysisStreaming, setIsAnalysisStreaming] = useState(false);
-  const [isAnalysisLoading, setIsAnalysisLoading] = useState(true);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
-  const analysisFetchedRef = useRef(false);
-
-  useEffect(() => {
-    if (analysisFetchedRef.current) return;
-    analysisFetchedRef.current = true;
-
-    const controller = new AbortController();
-
-    (async () => {
-      try {
-        const res = await fetch(`/api/pieces/${pieceId}/analysis`, { signal: controller.signal });
-
-        if (!res.ok) {
-          setAnalysisError("Failed to load analysis");
-          setIsAnalysisLoading(false);
-          return;
-        }
-
-        const contentType = res.headers.get("content-type") ?? "";
-
-        if (contentType.includes("application/json")) {
-          const data = await res.json();
-          setAnalysisText(data.analysis ?? "");
-          setAnalysisWikiUrl(data.wikiUrl ?? null);
-          setIsAnalysisLoading(false);
-          return;
-        }
-
-        setIsAnalysisLoading(false);
-        setIsAnalysisStreaming(true);
-
-        const reader = res.body?.getReader();
-        if (!reader) {
-          setAnalysisError("Streaming not supported");
-          setIsAnalysisStreaming(false);
-          return;
-        }
-
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        const processEvent = (eventBlock: string) => {
-          let eventType = "";
-          let dataLines: string[] = [];
-          for (const line of eventBlock.split("\n")) {
-            if (line.startsWith("event: ")) {
-              eventType = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              dataLines.push(line.slice(6));
-            }
-          }
-          if (dataLines.length === 0) return;
-          try {
-            const data = JSON.parse(dataLines.join("\n"));
-            if (eventType === "meta") {
-              setAnalysisWikiUrl(data.wikiUrl ?? null);
-            } else if (eventType === "chunk") {
-              setAnalysisText((prev) => prev + (data.text ?? ""));
-            } else if (eventType === "error") {
-              setAnalysisError(data.error ?? "Failed to generate analysis");
-              setIsAnalysisStreaming(false);
-            } else if (eventType === "done") {
-              setIsAnalysisStreaming(false);
-            }
-          } catch {}
-        };
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          const events = buffer.split("\n\n");
-          buffer = events.pop() ?? "";
-
-          for (const event of events) {
-            if (event.trim()) processEvent(event);
-          }
-        }
-
-        if (buffer.trim()) processEvent(buffer);
-        setIsAnalysisStreaming(false);
-      } catch (err: any) {
-        if (err?.name !== "AbortError") {
-          setAnalysisError("Failed to load analysis");
-          setIsAnalysisLoading(false);
-          setIsAnalysisStreaming(false);
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [pieceId]);
+  const { data: analysisData, isLoading: isAnalysisLoading, error: analysisError } = useQuery({
+    queryKey: ["/api/pieces", pieceId, "analysis"],
+    queryFn: async () => {
+      const res = await fetch(`/api/pieces/${pieceId}/analysis`);
+      if (!res.ok) throw new Error("Failed to fetch analysis");
+      return res.json();
+    },
+    staleTime: Infinity,
+    retry: 1,
+  });
 
   const { data: statusDistribution } = useQuery({
     queryKey: ["/api/pieces", pieceId, "status-distribution"],
@@ -357,9 +268,9 @@ export default function PieceDetailPage() {
               <CardHeader className="bg-muted/30 pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">Musical Analysis & Technique</CardTitle>
-                  {analysisWikiUrl && !isAnalysisLoading && (
+                  {analysisData?.wikiUrl && (
                     <a
-                      href={analysisWikiUrl}
+                      href={analysisData.wikiUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
@@ -373,35 +284,19 @@ export default function PieceDetailPage() {
               </CardHeader>
               <CardContent className="pt-4">
                 {isAnalysisLoading ? (
-                  <div className="space-y-3" data-testid="analysis-loading">
-                    <div className="h-4 bg-muted/60 rounded animate-pulse w-full" />
-                    <div className="h-4 bg-muted/60 rounded animate-pulse w-[95%]" />
-                    <div className="h-4 bg-muted/60 rounded animate-pulse w-full" />
-                    <div className="h-4 bg-muted/60 rounded animate-pulse w-[80%]" />
+                  <div className="space-y-2" data-testid="analysis-loading">
                     <div className="h-4 bg-muted/60 rounded animate-pulse w-full" />
                     <div className="h-4 bg-muted/60 rounded animate-pulse w-[90%]" />
-                    <p className="text-xs text-muted-foreground mt-3 italic">Generating analysis...</p>
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-[95%]" />
                   </div>
                 ) : analysisError ? (
                   <p className="text-muted-foreground italic" data-testid="text-analysis-error">
                     Unable to generate analysis at this time. Please try again later.
                   </p>
-                ) : analysisText ? (
-                  <div className="space-y-4" data-testid="text-analysis">
-                    {analysisText.split("\n\n").map((paragraph: string, i: number) => (
-                      <p key={i} className="text-muted-foreground leading-relaxed">
-                        {paragraph}
-                      </p>
-                    ))}
-                    {isAnalysisStreaming && (
-                      <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse ml-1" />
-                    )}
-                  </div>
-                ) : isAnalysisStreaming ? (
-                  <div className="flex items-center gap-2" data-testid="analysis-streaming-start">
-                    <span className="inline-block w-2 h-4 bg-primary/60 animate-pulse" />
-                    <p className="text-xs text-muted-foreground italic">Generating analysis...</p>
-                  </div>
+                ) : analysisData?.analysis ? (
+                  <p className="text-muted-foreground leading-relaxed" data-testid="text-analysis">
+                    {analysisData.analysis}
+                  </p>
                 ) : null}
               </CardContent>
             </Card>
