@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { registerObjectStorageRoutes } from "./replit_integrations/object_storage";
+import OpenAI from "openai";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -64,6 +65,94 @@ export async function registerRoutes(
       res.json(movements);
     } catch (error) {
       res.status(500).json({ error: "Failed to get movements" });
+    }
+  });
+
+  app.get("/api/pieces/:pieceId/analysis", async (req, res) => {
+    try {
+      const pieceId = parseInt(req.params.pieceId);
+
+      const cached = await storage.getPieceAnalysis(pieceId);
+      if (cached) {
+        return res.json({ analysis: cached.analysis, wikiUrl: cached.wikiUrl });
+      }
+
+      const piece = await storage.getPieceById(pieceId);
+      if (!piece) {
+        return res.status(404).json({ error: "Piece not found" });
+      }
+
+      const composer = await storage.getComposerById(piece.composerId);
+      const composerName = composer?.name ?? "Unknown";
+      const searchQuery = `${composerName} ${piece.title} piano`;
+
+      let wikiExtract = "";
+      let wikiUrl: string | null = null;
+
+      try {
+        const searchRes = await fetch(
+          `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchQuery)}&format=json&srlimit=1`
+        );
+        const searchData = await searchRes.json() as any;
+        const topResult = searchData?.query?.search?.[0];
+
+        if (topResult) {
+          const pageTitle = topResult.title;
+          wikiUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(pageTitle.replace(/ /g, "_"))}`;
+
+          const extractRes = await fetch(
+            `https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=true&titles=${encodeURIComponent(pageTitle)}&format=json&exlimit=1`
+          );
+          const extractData = await extractRes.json() as any;
+          const pages = extractData?.query?.pages;
+          if (pages) {
+            const page = Object.values(pages)[0] as any;
+            wikiExtract = (page?.extract ?? "").substring(0, 3000);
+          }
+        }
+      } catch (wikiError) {
+        console.error("Wikipedia fetch error:", wikiError);
+      }
+
+      if (!process.env.AI_INTEGRATIONS_OPENAI_API_KEY || !process.env.AI_INTEGRATIONS_OPENAI_BASE_URL) {
+        return res.status(503).json({ error: "AI service not configured" });
+      }
+
+      const openai = new OpenAI({
+        apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+        baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+      });
+
+      const prompt = wikiExtract
+        ? `Based on the following Wikipedia content about "${piece.title}" by ${composerName}, write a concise musical analysis and technique summary (2-3 paragraphs) for a pianist. Focus on: historical context, musical characteristics (form, harmony, style), and technical demands. Do not include any headers or bullet points.\n\nWikipedia content:\n${wikiExtract}`
+        : `Write a concise musical analysis and technique summary (2-3 paragraphs) for "${piece.title}" by ${composerName}, intended for a pianist. Focus on: historical context, musical characteristics (form, harmony, style), and technical demands. Do not include any headers or bullet points. If you are not confident about the details of this specific piece, provide general context about the composer's style and typical technical demands of their works.`;
+
+      let analysis: string;
+      try {
+        const completion = await openai.chat.completions.create({
+          model: "gpt-5-nano",
+          messages: [
+            { role: "system", content: "You are a knowledgeable classical music scholar writing for pianists. Be specific about musical details when possible. Write in flowing prose, not bullet points." },
+            { role: "user", content: prompt },
+          ],
+          max_completion_tokens: 8192,
+        });
+        analysis = completion.choices[0]?.message?.content ?? "Analysis not available.";
+      } catch (aiError) {
+        console.error("OpenAI API error:", aiError);
+        return res.status(502).json({ error: "AI service temporarily unavailable. Please try again later." });
+      }
+
+      const saved = await storage.savePieceAnalysis({
+        pieceId,
+        analysis,
+        wikiUrl,
+      });
+
+      res.json({ analysis: saved.analysis, wikiUrl: saved.wikiUrl });
+    } catch (error) {
+      console.error("Error generating piece analysis:", error);
+      res.status(500).json({ error: "Failed to generate analysis" });
     }
   });
 

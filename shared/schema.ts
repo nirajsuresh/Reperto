@@ -139,6 +139,18 @@ export const insertPieceCommentSchema = createInsertSchema(pieceComments).omit({
 export type InsertPieceComment = z.infer<typeof insertPieceCommentSchema>;
 export type PieceComment = typeof pieceComments.$inferSelect;
 
+export const pieceAnalyses = pgTable("piece_analyses", {
+  id: serial("id").primaryKey(),
+  pieceId: integer("piece_id").notNull().references(() => pieces.id).unique(),
+  analysis: text("analysis").notNull(),
+  wikiUrl: text("wiki_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertPieceAnalysisSchema = createInsertSchema(pieceAnalyses).omit({ id: true, createdAt: true });
+export type InsertPieceAnalysis = z.infer<typeof insertPieceAnalysisSchema>;
+export type PieceAnalysis = typeof pieceAnalyses.$inferSelect;
+
 export const userProfiles = pgTable("user_profiles", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id).unique(),

@@ -10,8 +10,9 @@ import {
   type Follow, type InsertFollow,
   type PieceRating, type InsertPieceRating,
   type PieceComment, type InsertPieceComment,
+  type PieceAnalysis, type InsertPieceAnalysis,
   users, composers, pieces, movements, repertoireEntries, posts, challenges, userProfiles, follows,
-  pieceRatings, pieceComments
+  pieceRatings, pieceComments, pieceAnalyses
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ilike, and, desc, inArray, sql, count, avg } from "drizzle-orm";
@@ -55,6 +56,9 @@ export interface IStorage {
   getPieceRatingSummary(pieceId: number): Promise<{ averageRating: number; totalRatings: number }>;
   getPieceComments(pieceId: number): Promise<any[]>;
   getPieceStatusDistribution(pieceId: number): Promise<{ status: string; count: number }[]>;
+  
+  getPieceAnalysis(pieceId: number): Promise<PieceAnalysis | undefined>;
+  savePieceAnalysis(data: InsertPieceAnalysis): Promise<PieceAnalysis>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -352,6 +356,22 @@ export class DatabaseStorage implements IStorage {
       .groupBy(repertoireEntries.status);
     
     return results;
+  }
+  async getPieceAnalysis(pieceId: number): Promise<PieceAnalysis | undefined> {
+    const [analysis] = await db.select().from(pieceAnalyses).where(eq(pieceAnalyses.pieceId, pieceId));
+    return analysis;
+  }
+
+  async savePieceAnalysis(data: InsertPieceAnalysis): Promise<PieceAnalysis> {
+    const [analysis] = await db
+      .insert(pieceAnalyses)
+      .values(data)
+      .onConflictDoUpdate({
+        target: pieceAnalyses.pieceId,
+        set: { analysis: data.analysis, wikiUrl: data.wikiUrl },
+      })
+      .returning();
+    return analysis;
   }
 }
 

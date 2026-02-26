@@ -170,6 +170,17 @@ export default function PieceDetailPage() {
     },
   });
 
+  const { data: analysisData, isLoading: isAnalysisLoading, error: analysisError } = useQuery({
+    queryKey: ["/api/pieces", pieceId, "analysis"],
+    queryFn: async () => {
+      const res = await fetch(`/api/pieces/${pieceId}/analysis`);
+      if (!res.ok) throw new Error("Failed to fetch analysis");
+      return res.json();
+    },
+    staleTime: Infinity,
+    retry: 1,
+  });
+
   const { data: statusDistribution } = useQuery({
     queryKey: ["/api/pieces", pieceId, "status-distribution"],
     queryFn: async () => {
@@ -257,17 +268,44 @@ export default function PieceDetailPage() {
               <CardHeader className="bg-muted/30 pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">Musical Analysis & Technique</CardTitle>
+                  {analysisData?.wikiUrl && (
+                    <a
+                      href={analysisData.wikiUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                      data-testid="link-wiki-source"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Source: Wikipedia
+                    </a>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="pt-4">
-                <p className="text-muted-foreground leading-relaxed" data-testid="text-analysis">
-                  Chopin's Fourth Ballade is widely considered one of the masterpieces of 19th-century piano music. 
-                  Composed in 1842, it represents the peak of his formal and harmonic language. The piece is 
-                  characterized by its complex counterpoint, variation-like structure, and profound emotional depth. 
-                  Technically, it demands extraordinary finger independence, subtle pedaling, and the ability 
-                  to maintain a lyrical line through dense, chromatic textures. The coda remains one of the most 
-                  formidable challenges in the standard repertoire.
-                </p>
+                {isAnalysisLoading ? (
+                  <div className="space-y-3" data-testid="analysis-loading">
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-full" />
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-[95%]" />
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-full" />
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-[80%]" />
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-full" />
+                    <div className="h-4 bg-muted/60 rounded animate-pulse w-[90%]" />
+                    <p className="text-xs text-muted-foreground mt-3 italic">Generating analysis — this may take a moment on first visit...</p>
+                  </div>
+                ) : analysisError ? (
+                  <p className="text-muted-foreground italic" data-testid="text-analysis-error">
+                    Unable to generate analysis at this time. Please try again later.
+                  </p>
+                ) : analysisData?.analysis ? (
+                  <div className="space-y-4" data-testid="text-analysis">
+                    {analysisData.analysis.split("\n\n").map((paragraph: string, i: number) => (
+                      <p key={i} className="text-muted-foreground leading-relaxed">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </div>
