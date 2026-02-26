@@ -42,6 +42,7 @@ export interface IStorage {
   createRepertoireEntry(entry: InsertRepertoireEntry): Promise<RepertoireEntry>;
   updateRepertoireEntry(id: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry | undefined>;
   deleteRepertoireEntry(id: number): Promise<boolean>;
+  updateRepertoireOrder(userId: string, order: { pieceId: number; displayOrder: number }[]): Promise<void>;
   
   getFeedPosts(userId: string, limit?: number): Promise<any[]>;
   getActiveChallenges(): Promise<Challenge[]>;
@@ -165,6 +166,7 @@ export class DatabaseStorage implements IStorage {
         movementId: repertoireEntries.movementId,
         status: repertoireEntries.status,
         startedDate: repertoireEntries.startedDate,
+        displayOrder: repertoireEntries.displayOrder,
         composerName: composers.name,
         pieceTitle: pieces.title,
         movementName: movements.name,
@@ -173,12 +175,36 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(composers, eq(repertoireEntries.composerId, composers.id))
       .innerJoin(pieces, eq(repertoireEntries.pieceId, pieces.id))
       .leftJoin(movements, eq(repertoireEntries.movementId, movements.id))
-      .where(eq(repertoireEntries.userId, userId));
+      .where(eq(repertoireEntries.userId, userId))
+      .orderBy(repertoireEntries.displayOrder, repertoireEntries.id);
     
     return results;
   }
 
+  async updateRepertoireOrder(userId: string, order: { pieceId: number; displayOrder: number }[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      for (const item of order) {
+        await tx
+          .update(repertoireEntries)
+          .set({ displayOrder: item.displayOrder })
+          .where(
+            and(
+              eq(repertoireEntries.userId, userId),
+              eq(repertoireEntries.pieceId, item.pieceId)
+            )
+          );
+      }
+    });
+  }
+
   async createRepertoireEntry(entry: InsertRepertoireEntry): Promise<RepertoireEntry> {
+    if (entry.displayOrder === undefined || entry.displayOrder === null) {
+      const [maxResult] = await db
+        .select({ maxOrder: sql<number>`COALESCE(MAX(${repertoireEntries.displayOrder}), -1)` })
+        .from(repertoireEntries)
+        .where(eq(repertoireEntries.userId, entry.userId));
+      entry = { ...entry, displayOrder: (maxResult?.maxOrder ?? -1) + 1 };
+    }
     const [newEntry] = await db.insert(repertoireEntries).values(entry).returning();
     return newEntry;
   }

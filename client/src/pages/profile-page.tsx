@@ -190,7 +190,21 @@ export default function ProfilePage() {
       setRepertoire((items) => {
         const oldIndex = items.findIndex((i) => i.id === active.id);
         const newIndex = items.findIndex((i) => i.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
+        const reordered = arrayMove(items, oldIndex, newIndex);
+
+        const order = reordered.map((item, index) => ({
+          pieceId: Number(item.id),
+          displayOrder: index,
+        }));
+
+        apiRequest("PUT", "/api/repertoire/reorder", { userId, order }).catch(
+          (err) => {
+            console.error("Failed to save repertoire order:", err);
+            queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+          }
+        );
+
+        return reordered;
       });
     }
   };

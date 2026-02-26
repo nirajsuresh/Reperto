@@ -86,6 +86,19 @@ export async function registerRoutes(
     }
   });
 
+  app.put("/api/repertoire/reorder", async (req, res) => {
+    try {
+      const { userId, order } = req.body;
+      if (!userId || !Array.isArray(order)) {
+        return res.status(400).json({ error: "userId and order array are required" });
+      }
+      await storage.updateRepertoireOrder(userId, order);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update repertoire order" });
+    }
+  });
+
   app.patch("/api/repertoire/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);

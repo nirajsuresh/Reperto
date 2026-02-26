@@ -54,6 +54,7 @@ export const repertoireEntries = pgTable("repertoire_entries", {
   movementId: integer("movement_id").references(() => movements.id),
   status: text("status").notNull().default("In Progress"),
   startedDate: text("started_date"),
+  displayOrder: integer("display_order").notNull().default(0),
 });
 
 export const insertRepertoireEntrySchema = createInsertSchema(repertoireEntries).omit({ id: true });
