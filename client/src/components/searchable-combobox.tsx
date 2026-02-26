@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useMemo } from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,11 @@ export function SearchableCombobox({
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  const sortedOptions = useMemo(
+    () => [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
+    [options]
+  );
+
   const selectedOption = options.find((option) => option.value === value);
 
   const handleSearch = (query: string) => {
@@ -86,11 +92,11 @@ export function SearchableCombobox({
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
-            ) : options.length === 0 ? (
+            ) : sortedOptions.length === 0 ? (
               <CommandEmpty>{emptyMessage}</CommandEmpty>
             ) : (
               <CommandGroup>
-                {options.map((option) => (
+                {sortedOptions.map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
@@ -147,6 +153,11 @@ export function MultiSelectCombobox({
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  const sortedOptions = useMemo(
+    () => [...options].sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
+    [options]
+  );
+
   const selectedLabels = values
     .map(v => options.find(o => o.value === v)?.label)
     .filter(Boolean)
@@ -195,11 +206,11 @@ export function MultiSelectCombobox({
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
-            ) : options.length === 0 ? (
+            ) : sortedOptions.length === 0 ? (
               <CommandEmpty>{emptyMessage}</CommandEmpty>
             ) : (
               <CommandGroup>
-                {options.map((option) => (
+                {sortedOptions.map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
