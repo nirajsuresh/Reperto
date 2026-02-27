@@ -28,19 +28,27 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Slider } from "@/components/ui/slider";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal, SplitSquareHorizontal, Merge, Pencil } from "lucide-react";
 
 type BoardItem = {
   id: string;
+  pieceId: number;
+  entryId?: number;
   composer: string;
   piece: string;
   movements: string[];
   status: string;
   progress: number;
+  isSplit: boolean;
+  movementCount: number;
 };
 
 type RepertoireBoardProps = {
   items: BoardItem[];
   onStatusChange: () => void;
+  onToggleSplit?: (pieceId: number, split: boolean) => void;
+  onEditMovements?: (pieceId: number) => void;
 };
 
 const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning"] as const;
@@ -137,9 +145,13 @@ function DroppableColumn({
 function DraggableCard({
   item,
   onProgressChange,
+  onToggleSplit,
+  onEditMovements,
 }: {
   item: BoardItem;
   onProgressChange: (id: string, progress: number) => void;
+  onToggleSplit?: (pieceId: number, split: boolean) => void;
+  onEditMovements?: (pieceId: number) => void;
 }) {
   const {
     attributes,
@@ -163,20 +175,56 @@ function DraggableCard({
       {...attributes}
       {...listeners}
       className={cn(
-        "bg-[#faf9f5] rounded-md p-3 shadow-sm border border-border/30 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow",
+        "group bg-[#faf9f5] rounded-md p-3 shadow-sm border border-border/30 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow",
         isDragging && "shadow-lg ring-2 ring-primary/30"
       )}
       data-testid={`board-card-${item.id}`}
     >
-      <Link href={`/piece/${item.id}`}>
-        <p className="text-xs font-semibold text-primary tracking-wide uppercase leading-tight">
-          {item.composer}
+      <div className="flex items-start justify-between gap-1">
+        <Link href={`/piece/${item.pieceId}`} className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-primary tracking-wide uppercase leading-tight">
+            {item.composer}
+          </p>
+          <p className="font-serif italic text-sm mt-0.5 leading-snug">
+            {item.piece}
+          </p>
+        </Link>
+        {(onToggleSplit || onEditMovements) && (
+          <div onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="p-0.5 rounded hover:bg-muted/50 -mt-0.5 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`card-actions-${item.id}`}>
+                <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                {onEditMovements && !item.isSplit && (
+                  <DropdownMenuItem onClick={() => onEditMovements(item.pieceId)} data-testid={`edit-movements-${item.id}`}>
+                    <Pencil className="w-3.5 h-3.5 mr-2" />
+                    Edit movements
+                  </DropdownMenuItem>
+                )}
+                {onToggleSplit && item.movementCount >= 2 && !item.isSplit && (
+                  <DropdownMenuItem onClick={() => onToggleSplit(item.pieceId, true)} data-testid={`split-${item.id}`}>
+                    <SplitSquareHorizontal className="w-3.5 h-3.5 mr-2" />
+                    Split into movements
+                  </DropdownMenuItem>
+                )}
+                {onToggleSplit && item.isSplit && (
+                  <DropdownMenuItem onClick={() => onToggleSplit(item.pieceId, false)} data-testid={`rejoin-${item.id}`}>
+                    <Merge className="w-3.5 h-3.5 mr-2" />
+                    Rejoin movements
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+      {item.isSplit && item.movements.length === 1 && (
+        <p className="text-[10px] text-muted-foreground mt-1">
+          {item.movements[0]}
         </p>
-        <p className="font-serif italic text-sm mt-0.5 leading-snug">
-          {item.piece}
-        </p>
-      </Link>
-      {item.movements.length > 1 && (
+      )}
+      {!item.isSplit && item.movements.length > 1 && (
         <p className="text-[10px] text-muted-foreground mt-1">
           {item.movements.length} movements
         </p>
@@ -234,10 +282,14 @@ function ColumnWithCards({
   status,
   items,
   onProgressChange,
+  onToggleSplit,
+  onEditMovements,
 }: {
   status: string;
   items: BoardItem[];
   onProgressChange: (id: string, progress: number) => void;
+  onToggleSplit?: (pieceId: number, split: boolean) => void;
+  onEditMovements?: (pieceId: number) => void;
 }) {
   const colItems = items.filter((i) => i.status === status);
   return (
@@ -251,6 +303,8 @@ function ColumnWithCards({
             key={item.id}
             item={item}
             onProgressChange={onProgressChange}
+            onToggleSplit={onToggleSplit}
+            onEditMovements={onEditMovements}
           />
         ))}
       </SortableContext>
@@ -263,7 +317,7 @@ function ColumnWithCards({
   );
 }
 
-export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps) {
+export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMovements }: RepertoireBoardProps) {
   const [boardItems, setBoardItems] = useState<BoardItem[]>(items);
   const [activeItem, setActiveItem] = useState<BoardItem | null>(null);
   const { toast } = useToast();
@@ -273,18 +327,29 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
     useSensor(KeyboardSensor)
   );
 
-  const updateStatus = useCallback(
-    async (pieceId: string, newStatus: string) => {
-      try {
-        const body: Record<string, any> = { status: newStatus };
+  const patchItem = useCallback(
+    async (item: BoardItem, body: Record<string, any>) => {
+      if (item.isSplit && item.entryId) {
+        await apiRequest("PATCH", `/api/repertoire/${item.entryId}`, body);
+      } else {
+        await apiRequest("PATCH", `/api/repertoire/piece/${item.pieceId}`, body);
+      }
+    },
+    []
+  );
 
-        await apiRequest("PATCH", `/api/repertoire/piece/${pieceId}`, body);
+  const updateStatus = useCallback(
+    async (itemId: string, newStatus: string) => {
+      const item = boardItems.find((i) => i.id === itemId);
+      if (!item) return;
+      try {
+        await patchItem(item, { status: newStatus });
         onStatusChange();
       } catch {
         toast({ title: "Failed to update status", variant: "destructive" });
       }
     },
-    [onStatusChange, toast]
+    [boardItems, onStatusChange, toast, patchItem]
   );
 
   const handleProgressChange = useCallback(
@@ -296,12 +361,14 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
       if ((window as any)[debounceKey]) clearTimeout((window as any)[debounceKey]);
       (window as any)[debounceKey] = setTimeout(async () => {
         try {
-          await apiRequest("PATCH", `/api/repertoire/piece/${itemId}`, { progress });
+          const item = boardItems.find((i) => i.id === itemId);
+          if (!item) return;
+          await patchItem(item, { progress });
           onStatusChange();
         } catch {}
       }, 500);
     },
-    [onStatusChange]
+    [boardItems, onStatusChange, patchItem]
   );
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -361,6 +428,8 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
             status={status}
             items={boardItems}
             onProgressChange={handleProgressChange}
+            onToggleSplit={onToggleSplit}
+            onEditMovements={onEditMovements}
           />
         ))}
 
@@ -371,6 +440,8 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
                 status={status}
                 items={boardItems}
                 onProgressChange={handleProgressChange}
+                onToggleSplit={onToggleSplit}
+                onEditMovements={onEditMovements}
               />
             </div>
           ))}
@@ -383,6 +454,8 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
                 status={status}
                 items={boardItems}
                 onProgressChange={handleProgressChange}
+                onToggleSplit={onToggleSplit}
+                onEditMovements={onEditMovements}
               />
             </div>
           ))}

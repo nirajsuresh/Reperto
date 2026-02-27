@@ -4,10 +4,12 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PianoAvatar } from "@/components/piano-avatars";
-import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3 } from "lucide-react";
+import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3, MoreHorizontal, SplitSquareHorizontal, Merge, Pencil } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddPieceDialog, type NewPieceData } from "@/components/add-piece-dialog";
+import { EditMovementsDialog } from "@/components/edit-movements-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -56,38 +58,74 @@ const activityLog = [
 
 type RepertoireItem = {
   id: string;
+  pieceId: number;
+  entryId?: number;
   composer: string;
   piece: string;
   movements: string[];
   status: string;
   date: string;
   progress: number;
+  isSplit: boolean;
+  movementCount: number;
 };
 
 function groupRepertoireData(raw: any[]): RepertoireItem[] {
-  const grouped = new Map<number, RepertoireItem>();
+  const splitEntries: RepertoireItem[] = [];
+  const grouped = new Map<number, RepertoireItem & { _allMovementNames: string[] }>();
+
   for (const entry of raw) {
     const pieceId = entry.pieceId;
-    if (!grouped.has(pieceId)) {
-      grouped.set(pieceId, {
-        id: String(pieceId),
+
+    if (entry.splitView) {
+      splitEntries.push({
+        id: `entry-${entry.id}`,
+        pieceId,
+        entryId: entry.id,
         composer: entry.composerName,
         piece: entry.pieceTitle,
-        movements: [],
+        movements: entry.movementName ? [entry.movementName] : [],
         status: entry.status,
         date: entry.startedDate || "—",
         progress: entry.progress ?? 0,
+        isSplit: true,
+        movementCount: 0,
       });
-    }
-    if (entry.movementName) {
-      grouped.get(pieceId)!.movements.push(entry.movementName);
+    } else {
+      if (!grouped.has(pieceId)) {
+        grouped.set(pieceId, {
+          id: String(pieceId),
+          pieceId,
+          composer: entry.composerName,
+          piece: entry.pieceTitle,
+          movements: [],
+          _allMovementNames: [],
+          status: entry.status,
+          date: entry.startedDate || "—",
+          progress: entry.progress ?? 0,
+          isSplit: false,
+          movementCount: 0,
+        });
+      }
+      if (entry.movementName) {
+        grouped.get(pieceId)!.movements.push(entry.movementName);
+        grouped.get(pieceId)!._allMovementNames.push(entry.movementName);
+      }
     }
   }
-  const items = Array.from(grouped.values());
-  for (const item of items) {
+
+  const groupedItems = Array.from(grouped.values()).map(({ _allMovementNames, ...item }) => {
     item.movements.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    item.movementCount = item.movements.length;
+    return item;
+  });
+
+  for (const s of splitEntries) {
+    const siblings = raw.filter((e: any) => e.pieceId === s.pieceId);
+    s.movementCount = siblings.length;
   }
-  return items;
+
+  return [...groupedItems, ...splitEntries];
 }
 
 export default function ProfilePage() {
@@ -189,6 +227,36 @@ export default function ProfilePage() {
     } catch (error) {
       console.error("Failed to add piece to repertoire:", error);
     }
+  };
+
+  const handleToggleSplit = async (pieceId: number, split: boolean) => {
+    try {
+      await apiRequest("PATCH", `/api/repertoire/piece/${pieceId}`, { splitView: split });
+      queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+    } catch (error) {
+      console.error("Failed to toggle split view:", error);
+    }
+  };
+
+  const [editMovementsPieceId, setEditMovementsPieceId] = useState<number | null>(null);
+
+  const getEntriesForPiece = (pieceId: number) => {
+    if (!rawRepertoire) return [];
+    return rawRepertoire
+      .filter((e: any) => e.pieceId === pieceId)
+      .map((e: any) => ({ entryId: e.id, movementId: e.movementId }));
+  };
+
+  const getComposerIdForPiece = (pieceId: number) => {
+    if (!rawRepertoire) return 0;
+    const entry = rawRepertoire.find((e: any) => e.pieceId === pieceId);
+    return entry?.composerId ?? 0;
+  };
+
+  const getStatusForPiece = (pieceId: number) => {
+    if (!rawRepertoire) return "Want to learn";
+    const entry = rawRepertoire.find((e: any) => e.pieceId === pieceId);
+    return entry?.status ?? "Want to learn";
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -366,6 +434,8 @@ export default function ProfilePage() {
                       onStatusChange={() => {
                         queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
                       }}
+                      onToggleSplit={(pieceId, split) => handleToggleSplit(pieceId, split)}
+                      onEditMovements={(pieceId) => setEditMovementsPieceId(pieceId)}
                     />
                   </div>
                 ) : (
@@ -410,11 +480,16 @@ export default function ProfilePage() {
                               <SortableRepertoireRow 
                                 key={item.id}
                                 id={item.id}
+                                pieceId={item.pieceId}
                                 composer={item.composer}
                                 piece={item.piece}
                                 movements={item.movements}
                                 status={item.status}
                                 date={item.date}
+                                isSplit={item.isSplit}
+                                movementCount={item.movementCount}
+                                onToggleSplit={handleToggleSplit}
+                                onEditMovements={(pid) => setEditMovementsPieceId(pid)}
                               />
                             ))}
                           </TableBody>
@@ -561,11 +636,25 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      {editMovementsPieceId !== null && userId && (
+        <EditMovementsDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) setEditMovementsPieceId(null); }}
+          pieceId={editMovementsPieceId}
+          userId={userId}
+          currentEntries={getEntriesForPiece(editMovementsPieceId)}
+          currentStatus={getStatusForPiece(editMovementsPieceId)}
+          composerId={getComposerIdForPiece(editMovementsPieceId)}
+          onSave={() => {
+            queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+          }}
+        />
+      )}
     </Layout>
   );
 }
 
-function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string }) {
+function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id, pieceId, isSplit, movementCount, onToggleSplit, onEditMovements }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string, pieceId: number, isSplit: boolean, movementCount: number, onToggleSplit: (pieceId: number, split: boolean) => void, onEditMovements: (pieceId: number) => void }) {
   const [status, setStatus] = useState(initialStatus);
   const [date, setDate] = useState(initialDate);
   const [movementsExpanded, setMovementsExpanded] = useState(false);
@@ -598,10 +687,10 @@ function SortableRepertoireRow({ composer, piece, movements, status: initialStat
         </button>
       </TableCell>
       <TableCell className="font-semibold text-primary">
-        <Link href={`/piece/${id}`}>{composer}</Link>
+        <Link href={`/piece/${pieceId}`}>{composer}</Link>
       </TableCell>
       <TableCell className="font-serif italic">
-        <Link href={`/piece/${id}`}>{piece}</Link>
+        <Link href={`/piece/${pieceId}`}>{piece}</Link>
       </TableCell>
       <TableCell className="text-muted-foreground text-xs">
         {movements.length === 0 ? (
@@ -658,27 +747,33 @@ function SortableRepertoireRow({ composer, piece, movements, status: initialStat
         )}
       </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
-              <Trash2 className="w-4 h-4" />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" data-testid={`row-actions-${id}`}>
+              <MoreHorizontal className="w-4 h-4" />
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Remove from Repertoire?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will remove <span className="font-serif italic">{piece}</span> from your repertoire tracking. This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            {!isSplit && (
+              <DropdownMenuItem onClick={() => onEditMovements(pieceId)} data-testid={`row-edit-movements-${id}`}>
+                <Pencil className="w-3.5 h-3.5 mr-2" />
+                Edit movements
+              </DropdownMenuItem>
+            )}
+            {movementCount >= 2 && !isSplit && (
+              <DropdownMenuItem onClick={() => onToggleSplit(pieceId, true)} data-testid={`row-split-${id}`}>
+                <SplitSquareHorizontal className="w-3.5 h-3.5 mr-2" />
+                Split into movements
+              </DropdownMenuItem>
+            )}
+            {isSplit && (
+              <DropdownMenuItem onClick={() => onToggleSplit(pieceId, false)} data-testid={`row-rejoin-${id}`}>
+                <Merge className="w-3.5 h-3.5 mr-2" />
+                Rejoin movements
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </TableCell>
     </TableRow>
   );

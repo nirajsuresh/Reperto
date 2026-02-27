@@ -56,6 +56,7 @@ export const repertoireEntries = pgTable("repertoire_entries", {
   startedDate: text("started_date"),
   displayOrder: integer("display_order").notNull().default(0),
   progress: integer("progress").notNull().default(0),
+  splitView: boolean("split_view").notNull().default(false),
 });
 
 export const insertRepertoireEntrySchema = createInsertSchema(repertoireEntries).omit({ id: true });

@@ -61,6 +61,12 @@ Preferred communication style: Simple, everyday language.
 - **date-fns**: Date formatting and manipulation
 - **Uppy**: File upload handling with dashboard UI
 
+### Movement Management
+- **Split/Rejoin**: `splitView` boolean column on `repertoire_entries` (default false); when true, each movement renders as its own card/row with independent status and progress; toggling via `PATCH /api/repertoire/piece/:pieceId` with `{ splitView: true/false }` updates all entries for that piece
+- **Edit Movements**: `EditMovementsDialog` component allows adding/removing movements from a piece already in repertoire; fetches available movements from `GET /api/pieces/:pieceId/movements`, creates/deletes entries as needed; handles whole-piece entries (movementId null) by deleting them when switching to movement-based tracking
+- **Board routing**: Split items use `PATCH /api/repertoire/:entryId` for individual status/progress updates; grouped items use `PATCH /api/repertoire/piece/:pieceId` for batch updates
+- **Grouping logic**: `groupRepertoireData` in profile-page.tsx checks `splitView` per entry; split entries get ids like `entry-{id}`, grouped entries get ids like `{pieceId}`
+
 ### AI-Powered Piece Analysis
 - **Wikipedia + OpenAI Pipeline**: `GET /api/pieces/:pieceId/analysis` searches Wikipedia for the piece, fetches the article extract (up to 1500 chars), and uses OpenAI `gpt-5-nano` to generate a single short paragraph encyclopedia-style description
 - **DB Caching**: Results are cached in the `piece_analyses` table (unique on `pieceId`); subsequent requests return instantly from cache

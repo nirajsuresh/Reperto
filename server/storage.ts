@@ -181,6 +181,7 @@ export class DatabaseStorage implements IStorage {
         startedDate: repertoireEntries.startedDate,
         displayOrder: repertoireEntries.displayOrder,
         progress: repertoireEntries.progress,
+        splitView: repertoireEntries.splitView,
         composerName: composers.name,
         pieceTitle: pieces.title,
         movementName: movements.name,
