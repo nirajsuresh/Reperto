@@ -294,11 +294,14 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
       );
       const debounceKey = `progress-${itemId}`;
       if ((window as any)[debounceKey]) clearTimeout((window as any)[debounceKey]);
-      (window as any)[debounceKey] = setTimeout(() => {
-        apiRequest("PATCH", `/api/repertoire/piece/${itemId}`, { progress }).catch(() => {});
+      (window as any)[debounceKey] = setTimeout(async () => {
+        try {
+          await apiRequest("PATCH", `/api/repertoire/piece/${itemId}`, { progress });
+          onStatusChange();
+        } catch {}
       }, 500);
     },
-    []
+    [onStatusChange]
   );
 
   const handleDragStart = (event: DragStartEvent) => {
