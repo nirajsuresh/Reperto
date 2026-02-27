@@ -19,11 +19,8 @@ import { useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import {
-  getStatusColor,
   getStatusDotColor,
   STATUSES,
-  VALID_TRANSITIONS,
-  type RepertoireStatus,
 } from "@/lib/status-colors";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -44,14 +41,19 @@ type RepertoireBoardProps = {
   onStatusChange: () => void;
 };
 
+const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning", "Performance Ready"] as const;
+const STACKED_COLUMNS = ["Refining", "Maintaining", "Shelved"] as const;
+
 function DroppableColumn({
   status,
   children,
   count,
+  compact,
 }: {
   status: string;
   children: React.ReactNode;
   count: number;
+  compact?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const dotColor = getStatusDotColor(status);
@@ -60,16 +62,17 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col min-w-[220px] w-[220px] rounded-lg transition-colors",
+        "flex flex-col rounded-lg transition-colors",
+        compact ? "min-h-0" : "min-w-[220px] w-[220px]",
         isOver ? "bg-primary/5 ring-2 ring-primary/20" : "bg-muted/20"
       )}
       data-testid={`board-column-${status.toLowerCase().replace(/\s+/g, "-")}`}
     >
-      <div className="px-3 py-3 border-b border-border/40">
+      <div className="px-3 py-2 border-b border-border/40">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div
-              className="w-2.5 h-2.5 rounded-full"
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: dotColor }}
             />
             <h3 className="text-sm font-semibold tracking-tight">{status}</h3>
@@ -79,7 +82,10 @@ function DroppableColumn({
           </span>
         </div>
       </div>
-      <div className="flex-1 p-2 space-y-2 min-h-[100px] overflow-y-auto max-h-[calc(100vh-280px)]">
+      <div className={cn(
+        "flex-1 p-2 space-y-2 overflow-y-auto",
+        compact ? "min-h-[60px] max-h-[180px]" : "min-h-[100px] max-h-[calc(100vh-280px)]"
+      )}>
         {children}
       </div>
     </div>
@@ -182,6 +188,41 @@ function OverlayCard({ item }: { item: BoardItem }) {
   );
 }
 
+function ColumnWithCards({
+  status,
+  items,
+  onProgressChange,
+  compact,
+}: {
+  status: string;
+  items: BoardItem[];
+  onProgressChange: (id: string, progress: number) => void;
+  compact?: boolean;
+}) {
+  const colItems = items.filter((i) => i.status === status);
+  return (
+    <DroppableColumn status={status} count={colItems.length} compact={compact}>
+      <SortableContext
+        items={colItems.map((i) => i.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {colItems.map((item) => (
+          <DraggableCard
+            key={item.id}
+            item={item}
+            onProgressChange={onProgressChange}
+          />
+        ))}
+      </SortableContext>
+      {colItems.length === 0 && (
+        <div className="flex items-center justify-center h-12 text-xs text-muted-foreground/50 italic">
+          Drop here
+        </div>
+      )}
+    </DroppableColumn>
+  );
+}
+
 export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps) {
   const [boardItems, setBoardItems] = useState<BoardItem[]>(items);
   const [activeItem, setActiveItem] = useState<BoardItem | null>(null);
@@ -245,16 +286,7 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
 
     if (targetStatus === draggedItem.status) return;
 
-    const currentStatus = draggedItem.status as RepertoireStatus;
-    const validTargets = VALID_TRANSITIONS[currentStatus];
-    if (!validTargets || !validTargets.includes(targetStatus as RepertoireStatus)) {
-      toast({
-        title: "Invalid move",
-        description: `Can't move from "${currentStatus}" to "${targetStatus}"`,
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!STATUSES.includes(targetStatus as any)) return;
 
     setBoardItems((prev) =>
       prev.map((i) =>
@@ -270,9 +302,6 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
     setBoardItems(items);
   }, [items]);
 
-  const columnItems = (status: string) =>
-    boardItems.filter((i) => i.status === status);
-
   return (
     <DndContext
       sensors={sensors}
@@ -284,30 +313,26 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
         className="flex gap-3 overflow-x-auto pb-4"
         data-testid="repertoire-board"
       >
-        {STATUSES.map((status) => {
-          const colItems = columnItems(status);
-          return (
-            <DroppableColumn key={status} status={status} count={colItems.length}>
-              <SortableContext
-                items={colItems.map((i) => i.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                {colItems.map((item) => (
-                  <DraggableCard
-                    key={item.id}
-                    item={item}
-                    onProgressChange={handleProgressChange}
-                  />
-                ))}
-              </SortableContext>
-              {colItems.length === 0 && (
-                <div className="flex items-center justify-center h-16 text-xs text-muted-foreground/50 italic">
-                  Drop here
-                </div>
-              )}
-            </DroppableColumn>
-          );
-        })}
+        {MAIN_COLUMNS.map((status) => (
+          <ColumnWithCards
+            key={status}
+            status={status}
+            items={boardItems}
+            onProgressChange={handleProgressChange}
+          />
+        ))}
+
+        <div className="flex flex-col gap-2 min-w-[220px] w-[220px]">
+          {STACKED_COLUMNS.map((status) => (
+            <ColumnWithCards
+              key={status}
+              status={status}
+              items={boardItems}
+              onProgressChange={handleProgressChange}
+              compact
+            />
+          ))}
+        </div>
       </div>
       <DragOverlay>
         {activeItem ? <OverlayCard item={activeItem} /> : null}
