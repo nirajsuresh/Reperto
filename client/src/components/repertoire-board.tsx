@@ -83,8 +83,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col rounded-lg transition-colors",
-        compact ? "min-h-0" : "flex-1 min-w-0",
+        "flex flex-col rounded-lg transition-colors flex-1 min-w-0",
         isOver ? "bg-primary/5 ring-2 ring-primary/20" : "bg-muted/20"
       )}
       data-testid={`board-column-${status.toLowerCase().replace(/\s+/g, "-")}`}
@@ -103,14 +102,11 @@ function DroppableColumn({
           </span>
         </div>
       </div>
-      <div className="relative flex-1">
+      <div className="relative flex-1 min-h-0">
         <div
           ref={scrollRef}
           onScroll={checkOverflow}
-          className={cn(
-            "p-2 space-y-2 overflow-y-auto",
-            compact ? "max-h-[160px]" : "max-h-[400px]"
-          )}
+          className="p-2 space-y-2 overflow-y-auto h-full"
         >
           {children}
         </div>
@@ -345,7 +341,7 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
       onDragEnd={handleDragEnd}
     >
       <div
-        className="flex gap-3 pb-4"
+        className="flex gap-3 pb-4 h-[600px]"
         data-testid="repertoire-board"
       >
         {MAIN_COLUMNS.map((status) => (
@@ -357,7 +353,7 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
           />
         ))}
 
-        <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex flex-col gap-2 flex-1 min-w-0 h-full">
           {STACKED_A.map((status) => (
             <ColumnWithCards
               key={status}
@@ -369,7 +365,7 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
           ))}
         </div>
 
-        <div className="flex flex-col gap-2 flex-1 min-w-0">
+        <div className="flex flex-col gap-2 flex-1 min-w-0 h-full">
           {STACKED_B.map((status) => (
             <ColumnWithCards
               key={status}
