@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -58,6 +58,26 @@ function DroppableColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
   const dotColor = getStatusDotColor(status);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [hasOverflow, setHasOverflow] = useState(false);
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(false);
+
+  const checkOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const overflows = el.scrollHeight > el.clientHeight + 2;
+    setHasOverflow(overflows);
+    setIsScrolledToBottom(el.scrollTop + el.clientHeight >= el.scrollHeight - 2);
+  }, []);
+
+  useEffect(() => {
+    checkOverflow();
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(checkOverflow);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [checkOverflow, children]);
 
   return (
     <div
@@ -83,11 +103,25 @@ function DroppableColumn({
           </span>
         </div>
       </div>
-      <div className={cn(
-        "flex-1 p-2 space-y-2 overflow-y-auto",
-        compact ? "min-h-[60px] max-h-[180px]" : "min-h-[100px] max-h-[calc(100vh-280px)]"
-      )}>
-        {children}
+      <div className="relative flex-1">
+        <div
+          ref={scrollRef}
+          onScroll={checkOverflow}
+          className={cn(
+            "p-2 space-y-2 overflow-y-auto",
+            compact ? "max-h-[160px]" : "max-h-[400px]"
+          )}
+        >
+          {children}
+        </div>
+        {hasOverflow && !isScrolledToBottom && (
+          <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+            <div className="h-8 bg-gradient-to-t from-muted/40 to-transparent" />
+            <div className="text-center -mt-1 pb-0.5">
+              <span className="text-xs text-muted-foreground font-medium tracking-widest">···</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
