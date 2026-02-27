@@ -116,6 +116,20 @@ export function EditMovementsDialog({
           <p className="text-sm text-muted-foreground py-4">This piece has no individual movements.</p>
         ) : (
           <div className="space-y-2 max-h-[300px] overflow-y-auto py-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (selected.size === movements.length) {
+                  setSelected(new Set());
+                } else {
+                  setSelected(new Set(movements.map((m) => m.id)));
+                }
+              }}
+              className="text-xs text-primary hover:underline px-3 py-1"
+              data-testid="button-toggle-all-movements"
+            >
+              {selected.size === movements.length ? "Deselect all" : "Select all"}
+            </button>
             {movements.map((mov) => (
               <label
                 key={mov.id}
