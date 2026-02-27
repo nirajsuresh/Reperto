@@ -10,6 +10,7 @@ interface LibraryComposer {
 
 export async function autoSeedIfEmpty() {
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+  await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
   const existingComposers = await db.select().from(composers).limit(1);
 
   if (existingComposers.length > 0) {

@@ -38,6 +38,7 @@ Preferred communication style: Simple, everyday language.
 - **Storage Abstraction**: The `IStorage` interface in `/server/storage.ts` provides a clean abstraction layer over database operations
 - **Presigned URL Uploads**: Two-step upload flow where backend provides presigned URLs and clients upload directly to object storage
 - **Piano Library Seed**: `server/piano-library.json` contains the full piano repertoire catalog (25 composers, 2207 pieces, 4000+ movements) extracted from a user-provided SQLite database. Auto-seed in `server/auto-seed.ts` loads this on first run.
+- **Fuzzy Search**: All server-side search uses PostgreSQL `unaccent` (accent-insensitive) + `word_similarity` from `pg_trgm` (typo-tolerant). Extensions created on startup in `auto-seed.ts`. Client-side `MultiSelectCombobox` uses NFD normalization for accent-insensitive local filtering.
 
 ### Build System
 - **Development**: Vite dev server with HMR for frontend, tsx for backend hot reloading

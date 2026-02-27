@@ -93,7 +93,9 @@ export class DatabaseStorage implements IStorage {
     if (!query.trim()) {
       return db.select().from(composers).orderBy(lastNameOrder);
     }
-    return db.select().from(composers).where(ilike(composers.name, `%${query}%`)).orderBy(lastNameOrder);
+    return db.select().from(composers)
+      .where(sql`unaccent(${composers.name}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${composers.name})) > 0.3`)
+      .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${composers.name})) DESC`, lastNameOrder);
   }
 
   async getComposerById(id: number): Promise<Composer | undefined> {
@@ -117,7 +119,8 @@ export class DatabaseStorage implements IStorage {
     if (composerId && query.trim()) {
       return db.select(selectFields).from(pieces)
         .innerJoin(composers, eq(pieces.composerId, composers.id))
-        .where(and(eq(pieces.composerId, composerId), ilike(pieces.title, `%${query}%`)));
+        .where(sql`${pieces.composerId} = ${composerId} AND (unaccent(${pieces.title}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${pieces.title})) > 0.3)`)
+        .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${pieces.title})) DESC`, pieces.title);
     } else if (composerId) {
       return db.select(selectFields).from(pieces)
         .innerJoin(composers, eq(pieces.composerId, composers.id))
@@ -127,9 +130,9 @@ export class DatabaseStorage implements IStorage {
       return db.select(selectFields).from(pieces)
         .innerJoin(composers, eq(pieces.composerId, composers.id))
         .where(
-          sql`${ilike(pieces.title, `%${query}%`)} OR ${ilike(composers.name, `%${query}%`)} OR similarity(${combined}, ${query}) > 0.1`
+          sql`unaccent(${pieces.title}) ILIKE unaccent(${'%' + query + '%'}) OR unaccent(${composers.name}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${combined})) > 0.3`
         )
-        .orderBy(sql`similarity(${combined}, ${query}) DESC`)
+        .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${combined})) DESC`, pieces.title)
         .limit(50);
     }
     return db.select(selectFields).from(pieces)
@@ -408,7 +411,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(userProfiles)
       .where(and(
-        ilike(userProfiles.displayName, `%${query}%`),
+        sql`unaccent(${userProfiles.displayName}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${userProfiles.displayName})) > 0.3`,
         ne(userProfiles.userId, currentUserId)
       ))
       .limit(20);

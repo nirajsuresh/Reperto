@@ -154,10 +154,19 @@ export function MultiSelectCombobox({
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
 
+  const normalize = (s: string) =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
   const sortedOptions = useMemo(
     () => [...options].sort((a, b) => (a.sortKey ?? a.label).localeCompare(b.sortKey ?? b.label, undefined, { numeric: true })),
     [options]
   );
+
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery.trim()) return sortedOptions;
+    const q = normalize(searchQuery);
+    return sortedOptions.filter((o) => normalize(o.label).includes(q));
+  }, [sortedOptions, searchQuery]);
 
   const selectedLabels = values
     .map(v => options.find(o => o.value === v)?.label)
@@ -207,26 +216,28 @@ export function MultiSelectCombobox({
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-4 w-4 animate-spin" />
               </div>
-            ) : sortedOptions.length === 0 ? (
+            ) : filteredOptions.length === 0 ? (
               <CommandEmpty>{emptyMessage}</CommandEmpty>
             ) : (
               <CommandGroup>
-                <CommandItem
-                  value="__toggle_all__"
-                  onSelect={() => {
-                    if (values.length === options.length) {
-                      onValuesChange([]);
-                    } else {
-                      onValuesChange(options.map(o => o.value));
-                    }
-                  }}
-                  className="text-xs text-primary"
-                  data-testid="combobox-multi-toggle-all"
-                >
-                  <Check className="mr-2 h-4 w-4 shrink-0 opacity-0" />
-                  {values.length === options.length ? "Deselect all" : "Select all"}
-                </CommandItem>
-                {sortedOptions.map((option) => (
+                {!searchQuery.trim() && (
+                  <CommandItem
+                    value="__toggle_all__"
+                    onSelect={() => {
+                      if (values.length === options.length) {
+                        onValuesChange([]);
+                      } else {
+                        onValuesChange(options.map(o => o.value));
+                      }
+                    }}
+                    className="text-xs text-primary"
+                    data-testid="combobox-multi-toggle-all"
+                  >
+                    <Check className="mr-2 h-4 w-4 shrink-0 opacity-0" />
+                    {values.length === options.length ? "Deselect all" : "Select all"}
+                  </CommandItem>
+                )}
+                {filteredOptions.map((option) => (
                   <CommandItem
                     key={option.value}
                     value={option.value}
