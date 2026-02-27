@@ -42,7 +42,8 @@ type RepertoireBoardProps = {
 };
 
 const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning"] as const;
-const STACKED_COLUMNS = ["Refining", "Maintaining", "Shelved", "Performance Ready"] as const;
+const STACKED_A = ["Refining", "Maintaining"] as const;
+const STACKED_B = ["Performance Ready", "Shelved"] as const;
 
 function DroppableColumn({
   status,
@@ -323,7 +324,19 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
         ))}
 
         <div className="flex flex-col gap-2 flex-1 min-w-0">
-          {STACKED_COLUMNS.map((status) => (
+          {STACKED_A.map((status) => (
+            <ColumnWithCards
+              key={status}
+              status={status}
+              items={boardItems}
+              onProgressChange={handleProgressChange}
+              compact
+            />
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          {STACKED_B.map((status) => (
             <ColumnWithCards
               key={status}
               status={status}
