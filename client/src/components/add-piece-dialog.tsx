@@ -224,9 +224,11 @@ export function AddPieceDialog({ onAdd }: AddPieceDialogProps) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Want to learn">Want to learn</SelectItem>
+                <SelectItem value="Up next">Up next</SelectItem>
                 <SelectItem value="Learning">Learning</SelectItem>
-                <SelectItem value="Polishing">Polishing</SelectItem>
-                <SelectItem value="Performance-ready">Performance-ready</SelectItem>
+                <SelectItem value="Refining">Refining</SelectItem>
+                <SelectItem value="Maintaining">Maintaining</SelectItem>
+                <SelectItem value="Performance Ready">Performance Ready</SelectItem>
                 <SelectItem value="Shelved">Shelved</SelectItem>
               </SelectContent>
             </Select>

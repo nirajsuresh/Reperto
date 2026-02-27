@@ -132,16 +132,18 @@ export default function PieceDetailPage() {
   const statusHistory = [
     { date: "Mar '24", status: "Want to learn" },
     { date: "Jun '24", status: "Learning" },
-    { date: "Nov '24", status: "Polishing" },
-    { date: "Mar '25", status: "Performance-ready" },
+    { date: "Nov '24", status: "Refining" },
+    { date: "Mar '25", status: "Performance Ready" },
     { date: "Dec '25", status: "Shelved" },
   ];
 
   const statusToNumber: Record<string, number> = {
     "Want to learn": 1,
+    "Up next": 1.5,
     "Learning": 2,
-    "Polishing": 3,
-    "Performance-ready": 4,
+    "Refining": 3,
+    "Maintaining": 3,
+    "Performance Ready": 4,
     "Shelved": 0,
   };
 
@@ -191,12 +193,14 @@ export default function PieceDetailPage() {
     },
   });
 
-  const allStatuses = ["Want to learn", "Learning", "Polishing", "Performance-ready", "Shelved"];
+  const allStatuses = ["Want to learn", "Up next", "Learning", "Refining", "Maintaining", "Performance Ready", "Shelved"];
   const boostedCounts: Record<string, number> = {
     "Want to learn": 89,
+    "Up next": 42,
     "Learning": 147,
-    "Polishing": 68,
-    "Performance-ready": 34,
+    "Refining": 68,
+    "Maintaining": 31,
+    "Performance Ready": 34,
     "Shelved": 23,
   };
   const distributionData = allStatuses.map(s => {
@@ -254,9 +258,11 @@ export default function PieceDetailPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Want to learn">Want to learn</SelectItem>
+                  <SelectItem value="Up next">Up next</SelectItem>
                   <SelectItem value="Learning">Learning</SelectItem>
-                  <SelectItem value="Polishing">Polishing</SelectItem>
-                  <SelectItem value="Performance-ready">Performance-ready</SelectItem>
+                  <SelectItem value="Refining">Refining</SelectItem>
+                  <SelectItem value="Maintaining">Maintaining</SelectItem>
+                  <SelectItem value="Performance Ready">Performance Ready</SelectItem>
                   <SelectItem value="Shelved">Shelved</SelectItem>
                 </SelectContent>
               </Select>
@@ -606,7 +612,7 @@ export default function PieceDetailPage() {
                             domain={[0, 4]}
                             ticks={[0, 1, 2, 3, 4]}
                             tickFormatter={(v: number) => {
-                              const labels: Record<number, string> = { 0: "Shelved", 1: "Want to learn", 2: "Learning", 3: "Polishing", 4: "Perf. Ready" };
+                              const labels: Record<number, string> = { 0: "Shelved", 1: "Want to learn", 2: "Learning", 3: "Refining", 4: "Perf. Ready" };
                               return labels[v] ?? "";
                             }}
                             tick={{ fontSize: 10 }}

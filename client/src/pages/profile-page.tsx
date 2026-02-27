@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PianoAvatar } from "@/components/piano-avatars";
-import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical } from "lucide-react";
+import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddPieceDialog, type NewPieceData } from "@/components/add-piece-dialog";
@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import { getStatusColor } from "@/lib/status-colors";
 import { Link, useLocation } from "wouter";
+import { RepertoireBoard } from "@/components/repertoire-board";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 import { useState, useEffect } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -60,6 +61,7 @@ type RepertoireItem = {
   movements: string[];
   status: string;
   date: string;
+  progress: number;
 };
 
 function groupRepertoireData(raw: any[]): RepertoireItem[] {
@@ -74,6 +76,7 @@ function groupRepertoireData(raw: any[]): RepertoireItem[] {
         movements: [],
         status: entry.status,
         date: entry.startedDate || "—",
+        progress: entry.progress ?? 0,
       });
     }
     if (entry.movementName) {
@@ -118,6 +121,9 @@ export default function ProfilePage() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: keyof RepertoireItem, direction: 'asc' | 'desc' } | null>(null);
   const [activeTab, setActiveTab] = useState("all");
+  const [viewMode, setViewMode] = useState<"table" | "board">(() => {
+    return (localStorage.getItem("repertoire-view") as "table" | "board") || "table";
+  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -133,8 +139,8 @@ export default function ProfilePage() {
   };
 
   const filteredRepertoire = repertoire.filter((item) => {
-    if (activeTab === "active") return item.status === "Learning" || item.status === "Polishing";
-    if (activeTab === "performance") return item.status === "Performance-ready";
+    if (activeTab === "active") return item.status === "Learning" || item.status === "Refining";
+    if (activeTab === "performance") return item.status === "Performance Ready";
     return true;
   });
 
@@ -308,27 +314,61 @@ export default function ProfilePage() {
                     <h2 className="font-serif text-2xl font-bold">Repertoire</h2>
                   </div>
                   <div className="flex items-center gap-4">
-                    {sortConfig ? (
+                    <div className="flex items-center border rounded-md overflow-hidden" data-testid="view-toggle">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => setSortConfig(null)}
-                        className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
-                        data-testid="button-custom-order"
+                        onClick={() => { setViewMode("table"); localStorage.setItem("repertoire-view", "table"); }}
+                        className={cn("rounded-none h-8 px-2.5", viewMode === "table" && "bg-muted")}
+                        data-testid="button-table-view"
                       >
-                        <GripVertical className="w-3 h-3" /> Custom order
+                        <List className="w-4 h-4" />
                       </Button>
-                    ) : null}
-                    <TabsList className="bg-background border">
-                      <TabsTrigger value="all">All Pieces</TabsTrigger>
-                      <TabsTrigger value="active">Active</TabsTrigger>
-                      <TabsTrigger value="performance">Ready</TabsTrigger>
-                    </TabsList>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setViewMode("board"); localStorage.setItem("repertoire-view", "board"); }}
+                        className={cn("rounded-none h-8 px-2.5", viewMode === "board" && "bg-muted")}
+                        data-testid="button-board-view"
+                      >
+                        <Columns3 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    {viewMode === "table" && (
+                      <>
+                        {sortConfig ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSortConfig(null)}
+                            className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+                            data-testid="button-custom-order"
+                          >
+                            <GripVertical className="w-3 h-3" /> Custom order
+                          </Button>
+                        ) : null}
+                        <TabsList className="bg-background border">
+                          <TabsTrigger value="all">All Pieces</TabsTrigger>
+                          <TabsTrigger value="active">Active</TabsTrigger>
+                          <TabsTrigger value="performance">Ready</TabsTrigger>
+                        </TabsList>
+                      </>
+                    )}
                     
                     <AddPieceDialog onAdd={handleAddPiece} />
                   </div>
                 </div>
 
+                {viewMode === "board" ? (
+                  <div className="mb-12">
+                    <RepertoireBoard
+                      items={repertoire}
+                      onStatusChange={() => {
+                        queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+                      }}
+                    />
+                  </div>
+                ) : (
                 <div className="space-y-4 mb-12">
                   <Card className="border-none shadow-sm overflow-hidden">
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -397,6 +437,7 @@ export default function ProfilePage() {
                     </Button>
                   </div>
                 </div>
+                )}
 
                 <div className="space-y-6 mb-12">
                   <div className="flex items-center gap-4">
@@ -594,9 +635,11 @@ function SortableRepertoireRow({ composer, piece, movements, status: initialStat
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="Want to learn">Want to learn</SelectItem>
+            <SelectItem value="Up next">Up next</SelectItem>
             <SelectItem value="Learning">Learning</SelectItem>
-            <SelectItem value="Polishing">Polishing</SelectItem>
-            <SelectItem value="Performance-ready">Performance-ready</SelectItem>
+            <SelectItem value="Refining">Refining</SelectItem>
+            <SelectItem value="Maintaining">Maintaining</SelectItem>
+            <SelectItem value="Performance Ready">Performance Ready</SelectItem>
             <SelectItem value="Shelved">Shelved</SelectItem>
           </SelectContent>
         </Select>

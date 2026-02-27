@@ -43,6 +43,7 @@ export interface IStorage {
   })[]>;
   createRepertoireEntry(entry: InsertRepertoireEntry): Promise<RepertoireEntry>;
   updateRepertoireEntry(id: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry | undefined>;
+  updateRepertoireByPiece(userId: string, pieceId: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry[]>;
   deleteRepertoireEntry(id: number): Promise<boolean>;
   updateRepertoireOrder(userId: string, order: { pieceId: number; displayOrder: number }[]): Promise<void>;
   
@@ -179,6 +180,7 @@ export class DatabaseStorage implements IStorage {
         status: repertoireEntries.status,
         startedDate: repertoireEntries.startedDate,
         displayOrder: repertoireEntries.displayOrder,
+        progress: repertoireEntries.progress,
         composerName: composers.name,
         pieceTitle: pieces.title,
         movementName: movements.name,
@@ -223,6 +225,14 @@ export class DatabaseStorage implements IStorage {
 
   async updateRepertoireEntry(id: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry | undefined> {
     const [updated] = await db.update(repertoireEntries).set(updates).where(eq(repertoireEntries.id, id)).returning();
+    return updated;
+  }
+
+  async updateRepertoireByPiece(userId: string, pieceId: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry[]> {
+    const updated = await db.update(repertoireEntries)
+      .set(updates)
+      .where(and(eq(repertoireEntries.userId, userId), eq(repertoireEntries.pieceId, pieceId)))
+      .returning();
     return updated;
   }
 

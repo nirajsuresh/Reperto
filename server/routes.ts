@@ -188,6 +188,18 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/repertoire/piece/:pieceId", async (req, res) => {
+    try {
+      const pieceId = parseInt(req.params.pieceId);
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const updated = await storage.updateRepertoireByPiece(userId, pieceId, req.body);
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update repertoire entries" });
+    }
+  });
+
   app.patch("/api/repertoire/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
