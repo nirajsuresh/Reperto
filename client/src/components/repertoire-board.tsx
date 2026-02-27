@@ -2,13 +2,15 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  rectIntersection,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
+  type CollisionDetection,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -44,6 +46,17 @@ type RepertoireBoardProps = {
 const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning"] as const;
 const STACKED_A = ["Refining", "Maintaining"] as const;
 const STACKED_B = ["Performance Ready", "Shelved"] as const;
+
+const ALL_COLUMN_IDS = new Set<string>([...MAIN_COLUMNS, ...STACKED_A, ...STACKED_B]);
+
+const customCollisionDetection: CollisionDetection = (args) => {
+  const rectCollisions = rectIntersection(args);
+  const columnCollisions = rectCollisions.filter((c) => ALL_COLUMN_IDS.has(String(c.id)));
+  if (columnCollisions.length > 0) {
+    return columnCollisions;
+  }
+  return closestCenter(args);
+};
 
 function DroppableColumn({
   status,
@@ -332,7 +345,7 @@ export function RepertoireBoard({ items, onStatusChange }: RepertoireBoardProps)
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
