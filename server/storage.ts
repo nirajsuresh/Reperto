@@ -48,6 +48,9 @@ export interface IStorage {
   deleteRepertoireByPiece(userId: string, pieceId: number): Promise<boolean>;
   updateRepertoireOrder(userId: string, order: { pieceId: number; displayOrder: number }[]): Promise<void>;
   
+  createPost(post: InsertPost): Promise<Post>;
+  getUserActivityLog(userId: string, limit?: number): Promise<any[]>;
+  deletePost(id: number): Promise<boolean>;
   getFeedPosts(userId: string, limit?: number): Promise<any[]>;
   getActiveChallenges(): Promise<Challenge[]>;
   getRecordingPosts(limit?: number): Promise<any[]>;
@@ -275,6 +278,36 @@ export class DatabaseStorage implements IStorage {
     const result = await db.delete(repertoireEntries)
       .where(and(eq(repertoireEntries.userId, userId), eq(repertoireEntries.pieceId, pieceId)))
       .returning();
+    return result.length > 0;
+  }
+
+  async createPost(post: InsertPost): Promise<Post> {
+    const [created] = await db.insert(posts).values(post).returning();
+    return created;
+  }
+
+  async getUserActivityLog(userId: string, limit: number = 30): Promise<any[]> {
+    const results = await db
+      .select({
+        id: posts.id,
+        type: posts.type,
+        content: posts.content,
+        pieceId: posts.pieceId,
+        createdAt: posts.createdAt,
+        pieceTitle: pieces.title,
+        composerName: composers.name,
+      })
+      .from(posts)
+      .leftJoin(pieces, eq(posts.pieceId, pieces.id))
+      .leftJoin(composers, eq(pieces.composerId, composers.id))
+      .where(eq(posts.userId, userId))
+      .orderBy(desc(posts.createdAt))
+      .limit(limit);
+    return results;
+  }
+
+  async deletePost(id: number): Promise<boolean> {
+    const result = await db.delete(posts).where(eq(posts.id, id)).returning();
     return result.length > 0;
   }
 

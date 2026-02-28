@@ -68,6 +68,13 @@ Preferred communication style: Simple, everyday language.
 - **Board routing**: Split items use `PATCH /api/repertoire/:entryId` for individual status/progress updates; grouped items use `PATCH /api/repertoire/piece/:pieceId` for batch updates
 - **Grouping logic**: `groupRepertoireData` in profile-page.tsx checks `splitView` per entry; split entries get ids like `entry-{id}`, grouped entries get ids like `{pieceId}`
 - **Remove from repertoire**: `DELETE /api/repertoire/:id` for single entries; `DELETE /api/repertoire/piece/:pieceId` (with `x-user-id` header) for batch-deleting all entries of a grouped piece; both table row menu and Kanban card menu have "Remove from repertoire" option with confirmation dialog
+- **Table-view status persistence**: Table row status dropdown now calls `PATCH /api/repertoire/:id` or `/api/repertoire/piece/:pieceId` to persist changes (previously was local-state only)
+
+### Activity Log
+- **Real-time activity**: Profile page activity log fetches from `GET /api/activity/:userId` instead of hardcoded data; shows "added_piece" and "status_change" events with relative timestamps via `date-fns`
+- **Auto-logging**: `POST /api/repertoire` creates an `added_piece` post (with 10-second dedup for multi-movement adds); `PATCH /api/repertoire/*` creates a `status_change` post when status changes (excluding "Shelved"), also with dedup
+- **Manual deletion**: Each activity entry has an X button to delete it; `DELETE /api/activity/:id` with ownership check
+- **Auth**: Both GET and DELETE activity endpoints require `x-user-id` header and verify ownership
 
 ### Unified Search
 - **Endpoint**: `GET /api/search/unified?q=...` searches across pieces AND movements with full context

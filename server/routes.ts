@@ -179,6 +179,23 @@ export async function registerRoutes(
   app.post("/api/repertoire", async (req, res) => {
     try {
       const entry = await storage.createRepertoireEntry(req.body);
+
+      if (req.body.pieceId && req.body.userId) {
+        const tenSecondsAgo = new Date(Date.now() - 10000);
+        const recentActivity = await storage.getUserActivityLog(req.body.userId, 5);
+        const alreadyLogged = recentActivity.some(
+          (a: any) => a.type === "added_piece" && a.pieceId === req.body.pieceId && a.createdAt && new Date(a.createdAt) > tenSecondsAgo
+        );
+        if (!alreadyLogged) {
+          await storage.createPost({
+            userId: req.body.userId,
+            type: "added_piece",
+            content: "Added to repertoire",
+            pieceId: req.body.pieceId,
+          });
+        }
+      }
+
       res.status(201).json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to create repertoire entry" });
@@ -204,6 +221,24 @@ export async function registerRoutes(
       const userId = req.headers["x-user-id"] as string;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const updated = await storage.updateRepertoireByPiece(userId, pieceId, req.body);
+
+      if (req.body.status && req.body.status !== "Shelved") {
+        try {
+          const recent = await storage.getUserActivityLog(userId, 5);
+          const alreadyLogged = recent.some(
+            (a: any) => a.type === "status_change" && a.pieceId === pieceId && a.content === req.body.status && a.createdAt && new Date(a.createdAt) > new Date(Date.now() - 10000)
+          );
+          if (!alreadyLogged) {
+            await storage.createPost({
+              userId,
+              type: "status_change",
+              content: req.body.status,
+              pieceId,
+            });
+          }
+        } catch (e) {}
+      }
+
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update repertoire entries" });
@@ -217,6 +252,27 @@ export async function registerRoutes(
       if (!updated) {
         return res.status(404).json({ error: "Repertoire entry not found" });
       }
+
+      if (req.body.status && req.body.status !== "Shelved" && updated) {
+        const userId = req.headers["x-user-id"] as string;
+        if (userId) {
+          try {
+            const recent = await storage.getUserActivityLog(userId, 5);
+            const alreadyLogged = recent.some(
+              (a: any) => a.type === "status_change" && a.pieceId === updated.pieceId && a.content === req.body.status && a.createdAt && new Date(a.createdAt) > new Date(Date.now() - 10000)
+            );
+            if (!alreadyLogged) {
+              await storage.createPost({
+                userId,
+                type: "status_change",
+                content: req.body.status,
+                pieceId: updated.pieceId,
+              });
+            }
+          } catch (e) {}
+        }
+      }
+
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update repertoire entry" });
@@ -259,6 +315,41 @@ export async function registerRoutes(
       res.json(posts);
     } catch (error) {
       res.status(500).json({ error: "Failed to get feed posts" });
+    }
+  });
+
+  app.get("/api/activity/:userId", async (req, res) => {
+    try {
+      const userId = req.params.userId;
+      const requestingUser = req.headers["x-user-id"] as string;
+      if (!requestingUser || requestingUser !== userId) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
+      const activity = await storage.getUserActivityLog(userId, limit);
+      res.json(activity);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get activity log" });
+    }
+  });
+
+  app.delete("/api/activity/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const activity = await storage.getUserActivityLog(userId, 100);
+      const owns = activity.some((a: any) => a.id === id);
+      if (!owns) {
+        return res.status(403).json({ error: "Not authorized to delete this entry" });
+      }
+      const deleted = await storage.deletePost(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Activity entry not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete activity entry" });
     }
   });
 

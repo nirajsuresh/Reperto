@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PianoAvatar } from "@/components/piano-avatars";
-import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3, MoreHorizontal, SplitSquareHorizontal, Merge, Pencil } from "lucide-react";
+import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3, MoreHorizontal, SplitSquareHorizontal, Merge, Pencil, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddPieceDialog, type NewPieceData } from "@/components/add-piece-dialog";
@@ -30,7 +30,8 @@ import { useState, useEffect } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { formatDistanceToNow } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -50,11 +51,6 @@ const lengthData = [
   { name: "30m+", count: 3 },
 ];
 
-const activityLog = [
-  { id: 1, type: "start", piece: "Chopin - Ballade no. 4 in F minor Op. 52", date: "1 day ago" },
-  { id: 2, type: "ready", piece: "Rachmaninoff - Préludes Op. 23", date: "1 week ago" },
-  { id: 3, type: "performance", piece: "Liszt - Sonata in B minor", location: "Carnegie Hall", date: "1 month ago" },
-];
 
 type RepertoireItem = {
   id: string;
@@ -149,6 +145,11 @@ export default function ProfilePage() {
     staleTime: 0,
   });
 
+  const { data: activityLog = [] } = useQuery<any[]>({
+    queryKey: [`/api/activity/${userId}`],
+    enabled: !!userId,
+  });
+
   const [repertoire, setRepertoire] = useState<RepertoireItem[]>([]);
 
   useEffect(() => {
@@ -196,6 +197,13 @@ export default function ProfilePage() {
 
   const queryClient = useQueryClient();
 
+  const deleteActivityMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/activity/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/activity/${userId}`] });
+    },
+  });
+
   const handleAddPiece = async (piece: NewPieceData) => {
     const startedDate = piece.date === "—" ? null : piece.date;
 
@@ -224,6 +232,7 @@ export default function ProfilePage() {
       }
 
       queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/activity/${userId}`] });
     } catch (error) {
       console.error("Failed to add piece to repertoire:", error);
     }
@@ -249,6 +258,21 @@ export default function ProfilePage() {
       queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
     } catch (error) {
       console.error("Failed to remove from repertoire:", error);
+    }
+  };
+
+  const handleStatusChange = async (id: string, pieceId: number, isSplit: boolean, newStatus: string) => {
+    try {
+      if (isSplit) {
+        const entryId = parseInt(id.replace("entry-", ""));
+        await apiRequest("PATCH", `/api/repertoire/${entryId}`, { status: newStatus });
+      } else {
+        await apiRequest("PATCH", `/api/repertoire/piece/${pieceId}`, { status: newStatus });
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/activity/${userId}`] });
+    } catch (error) {
+      console.error("Failed to update status:", error);
     }
   };
 
@@ -447,6 +471,7 @@ export default function ProfilePage() {
                       items={repertoire}
                       onStatusChange={() => {
                         queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+                        queryClient.invalidateQueries({ queryKey: [`/api/activity/${userId}`] });
                       }}
                       onToggleSplit={(pieceId, split) => handleToggleSplit(pieceId, split)}
                       onEditMovements={(pieceId) => setEditMovementsPieceId(pieceId)}
@@ -506,6 +531,7 @@ export default function ProfilePage() {
                                 onToggleSplit={handleToggleSplit}
                                 onEditMovements={(pid) => setEditMovementsPieceId(pid)}
                                 onRemove={handleRemove}
+                                onStatusChange={handleStatusChange}
                               />
                             ))}
                           </TableBody>
@@ -535,7 +561,7 @@ export default function ProfilePage() {
                     <Activity className="w-6 h-6 text-primary" />
                     <h2 className="font-serif text-2xl font-bold">Activity Log</h2>
                   </div>
-                  {repertoire.length === 0 ? (
+                  {activityLog.length === 0 ? (
                     <Card className="border-none shadow-sm">
                       <CardContent className="py-12 text-center">
                         <Activity className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
@@ -544,22 +570,34 @@ export default function ProfilePage() {
                     </Card>
                   ) : (
                     <Card className="border-none shadow-sm divide-y">
-                      {activityLog.map((log) => (
-                        <div key={log.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                          <div className="flex items-center gap-4">
-                            <div className={cn(
-                              "w-2 h-2 rounded-full",
-                              log.type === "start" ? "bg-[#c47a5a]" : log.type === "ready" ? "bg-[#8b7040]" : "bg-[#7a6e60]"
-                            )} />
-                            <p className="text-sm">
-                              {log.type === "start" && <>You started <span className="font-serif italic font-bold">{log.piece}</span>!</>}
-                              {log.type === "ready" && <>You are performance-ready with <span className="font-serif italic font-bold">{log.piece}</span></>}
-                              {log.type === "performance" && <>You added a performance on <span className="font-serif italic font-bold">{log.piece}</span> at {log.location}</>}
-                            </p>
+                      {activityLog.map((log: any) => {
+                        const pieceName = [log.composerName, log.pieceTitle].filter(Boolean).join(" — ");
+                        const timeAgo = log.createdAt ? formatDistanceToNow(new Date(log.createdAt), { addSuffix: true }) : "";
+                        return (
+                          <div key={log.id} className="p-4 flex items-center justify-between group hover:bg-muted/30 transition-colors" data-testid={`activity-entry-${log.id}`}>
+                            <div className="flex items-center gap-4">
+                              <div className={cn(
+                                "w-2 h-2 rounded-full",
+                                log.type === "added_piece" ? "bg-[#c47a5a]" : "bg-[#8b7040]"
+                              )} />
+                              <p className="text-sm">
+                                {log.type === "added_piece" && <>Added <span className="font-serif italic font-bold">{pieceName}</span> to repertoire</>}
+                                {log.type === "status_change" && <>Moved <span className="font-serif italic font-bold">{pieceName}</span> to <span className="font-semibold">{log.content}</span></>}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                              <button
+                                onClick={() => deleteActivityMutation.mutate(log.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                                data-testid={`delete-activity-${log.id}`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
-                          <span className="text-xs text-muted-foreground">{log.date}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </Card>
                   )}
                 </div>
@@ -670,7 +708,7 @@ export default function ProfilePage() {
   );
 }
 
-function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id, pieceId, isSplit, movementCount, onToggleSplit, onEditMovements, onRemove }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string, pieceId: number, isSplit: boolean, movementCount: number, onToggleSplit: (pieceId: number, split: boolean) => void, onEditMovements: (pieceId: number) => void, onRemove: (id: string, pieceId: number, isSplit: boolean) => void }) {
+function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id, pieceId, isSplit, movementCount, onToggleSplit, onEditMovements, onRemove, onStatusChange }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string, pieceId: number, isSplit: boolean, movementCount: number, onToggleSplit: (pieceId: number, split: boolean) => void, onEditMovements: (pieceId: number) => void, onRemove: (id: string, pieceId: number, isSplit: boolean) => void, onStatusChange: (id: string, pieceId: number, isSplit: boolean, newStatus: string) => void }) {
   const [status, setStatus] = useState(initialStatus);
   const [date, setDate] = useState(initialDate);
   const [movementsExpanded, setMovementsExpanded] = useState(false);
@@ -735,7 +773,7 @@ function SortableRepertoireRow({ composer, piece, movements, status: initialStat
         )}
       </TableCell>
       <TableCell onClick={(e) => e.stopPropagation()}>
-        <Select value={status} onValueChange={setStatus}>
+        <Select value={status} onValueChange={(val) => { setStatus(val); onStatusChange(id, pieceId, isSplit, val); }}>
           <SelectTrigger className={cn("h-8 w-[180px] font-medium border-none shadow-none focus:ring-0", getStatusColor(status))}>
             <SelectValue />
           </SelectTrigger>
