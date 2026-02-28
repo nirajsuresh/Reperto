@@ -67,6 +67,7 @@ Preferred communication style: Simple, everyday language.
 - **Edit Movements**: `EditMovementsDialog` component allows adding/removing movements from a piece already in repertoire; fetches available movements from `GET /api/pieces/:pieceId/movements`, creates/deletes entries as needed; handles whole-piece entries (movementId null) by deleting them when switching to movement-based tracking
 - **Board routing**: Split items use `PATCH /api/repertoire/:entryId` for individual status/progress updates; grouped items use `PATCH /api/repertoire/piece/:pieceId` for batch updates
 - **Grouping logic**: `groupRepertoireData` in profile-page.tsx checks `splitView` per entry; split entries get ids like `entry-{id}`, grouped entries get ids like `{pieceId}`
+- **Remove from repertoire**: `DELETE /api/repertoire/:id` for single entries; `DELETE /api/repertoire/piece/:pieceId` (with `x-user-id` header) for batch-deleting all entries of a grouped piece; both table row menu and Kanban card menu have "Remove from repertoire" option with confirmation dialog
 
 ### Unified Search
 - **Endpoint**: `GET /api/search/unified?q=...` searches across pieces AND movements with full context

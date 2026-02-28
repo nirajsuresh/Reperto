@@ -238,6 +238,20 @@ export default function ProfilePage() {
     }
   };
 
+  const handleRemove = async (id: string, pieceId: number, isSplit: boolean) => {
+    try {
+      if (isSplit) {
+        const entryId = parseInt(id.replace("entry-", ""));
+        await apiRequest("DELETE", `/api/repertoire/${entryId}`);
+      } else {
+        await apiRequest("DELETE", `/api/repertoire/piece/${pieceId}`);
+      }
+      queryClient.invalidateQueries({ queryKey: [`/api/repertoire/${userId}`] });
+    } catch (error) {
+      console.error("Failed to remove from repertoire:", error);
+    }
+  };
+
   const [editMovementsPieceId, setEditMovementsPieceId] = useState<number | null>(null);
 
   const getEntriesForPiece = (pieceId: number) => {
@@ -436,6 +450,7 @@ export default function ProfilePage() {
                       }}
                       onToggleSplit={(pieceId, split) => handleToggleSplit(pieceId, split)}
                       onEditMovements={(pieceId) => setEditMovementsPieceId(pieceId)}
+                      onRemove={handleRemove}
                     />
                   </div>
                 ) : (
@@ -490,6 +505,7 @@ export default function ProfilePage() {
                                 movementCount={item.movementCount}
                                 onToggleSplit={handleToggleSplit}
                                 onEditMovements={(pid) => setEditMovementsPieceId(pid)}
+                                onRemove={handleRemove}
                               />
                             ))}
                           </TableBody>
@@ -654,10 +670,11 @@ export default function ProfilePage() {
   );
 }
 
-function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id, pieceId, isSplit, movementCount, onToggleSplit, onEditMovements }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string, pieceId: number, isSplit: boolean, movementCount: number, onToggleSplit: (pieceId: number, split: boolean) => void, onEditMovements: (pieceId: number) => void }) {
+function SortableRepertoireRow({ composer, piece, movements, status: initialStatus, date: initialDate, id, pieceId, isSplit, movementCount, onToggleSplit, onEditMovements, onRemove }: { composer: string, piece: string, movements: string[], status: string, date: string, id: string, pieceId: number, isSplit: boolean, movementCount: number, onToggleSplit: (pieceId: number, split: boolean) => void, onEditMovements: (pieceId: number) => void, onRemove: (id: string, pieceId: number, isSplit: boolean) => void }) {
   const [status, setStatus] = useState(initialStatus);
   const [date, setDate] = useState(initialDate);
   const [movementsExpanded, setMovementsExpanded] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const {
     attributes,
@@ -772,8 +789,28 @@ function SortableRepertoireRow({ composer, piece, movements, status: initialStat
                 Rejoin movements
               </DropdownMenuItem>
             )}
+            <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="text-destructive focus:text-destructive" data-testid={`row-remove-${id}`}>
+              <Trash2 className="w-3.5 h-3.5 mr-2" />
+              Remove from repertoire
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Remove from repertoire?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will remove {isSplit ? `this movement of "${piece}"` : `"${piece}"`} from your repertoire. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onRemove(id, pieceId, isSplit)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Remove
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </TableCell>
     </TableRow>
   );

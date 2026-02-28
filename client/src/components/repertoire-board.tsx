@@ -29,7 +29,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Slider } from "@/components/ui/slider";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, SplitSquareHorizontal, Merge, Pencil } from "lucide-react";
+import { MoreHorizontal, SplitSquareHorizontal, Merge, Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type BoardItem = {
   id: string;
@@ -49,6 +59,7 @@ type RepertoireBoardProps = {
   onStatusChange: () => void;
   onToggleSplit?: (pieceId: number, split: boolean) => void;
   onEditMovements?: (pieceId: number) => void;
+  onRemove?: (id: string, pieceId: number, isSplit: boolean) => void;
 };
 
 const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning"] as const;
@@ -147,12 +158,15 @@ function DraggableCard({
   onProgressChange,
   onToggleSplit,
   onEditMovements,
+  onRemove,
 }: {
   item: BoardItem;
   onProgressChange: (id: string, progress: number) => void;
   onToggleSplit?: (pieceId: number, split: boolean) => void;
   onEditMovements?: (pieceId: number) => void;
+  onRemove?: (id: string, pieceId: number, isSplit: boolean) => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const {
     attributes,
     listeners,
@@ -189,7 +203,7 @@ function DraggableCard({
             {item.piece}
           </p>
         </Link>
-        {(onToggleSplit || onEditMovements) && (
+        {(onToggleSplit || onEditMovements || onRemove) && (
           <div onPointerDown={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
             <DropdownMenu>
               <DropdownMenuTrigger className="p-0.5 rounded hover:bg-muted/50 -mt-0.5 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity" data-testid={`card-actions-${item.id}`}>
@@ -214,8 +228,30 @@ function DraggableCard({
                     Rejoin movements
                   </DropdownMenuItem>
                 )}
+                {onRemove && (
+                  <DropdownMenuItem onClick={() => setConfirmDelete(true)} className="text-destructive focus:text-destructive" data-testid={`card-remove-${item.id}`}>
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Remove from repertoire
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
+            <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Remove from repertoire?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will remove {item.isSplit ? `this movement of "${item.piece}"` : `"${item.piece}"`} from your repertoire. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => onRemove(item.id, item.pieceId, item.isSplit)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                    Remove
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         )}
       </div>
@@ -284,12 +320,14 @@ function ColumnWithCards({
   onProgressChange,
   onToggleSplit,
   onEditMovements,
+  onRemove,
 }: {
   status: string;
   items: BoardItem[];
   onProgressChange: (id: string, progress: number) => void;
   onToggleSplit?: (pieceId: number, split: boolean) => void;
   onEditMovements?: (pieceId: number) => void;
+  onRemove?: (id: string, pieceId: number, isSplit: boolean) => void;
 }) {
   const colItems = items.filter((i) => i.status === status);
   return (
@@ -305,6 +343,7 @@ function ColumnWithCards({
             onProgressChange={onProgressChange}
             onToggleSplit={onToggleSplit}
             onEditMovements={onEditMovements}
+            onRemove={onRemove}
           />
         ))}
       </SortableContext>
@@ -317,7 +356,7 @@ function ColumnWithCards({
   );
 }
 
-export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMovements }: RepertoireBoardProps) {
+export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMovements, onRemove }: RepertoireBoardProps) {
   const [boardItems, setBoardItems] = useState<BoardItem[]>(items);
   const [activeItem, setActiveItem] = useState<BoardItem | null>(null);
   const { toast } = useToast();
@@ -430,6 +469,7 @@ export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMo
             onProgressChange={handleProgressChange}
             onToggleSplit={onToggleSplit}
             onEditMovements={onEditMovements}
+            onRemove={onRemove}
           />
         ))}
 
@@ -442,6 +482,7 @@ export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMo
                 onProgressChange={handleProgressChange}
                 onToggleSplit={onToggleSplit}
                 onEditMovements={onEditMovements}
+                onRemove={onRemove}
               />
             </div>
           ))}
@@ -456,6 +497,7 @@ export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMo
                 onProgressChange={handleProgressChange}
                 onToggleSplit={onToggleSplit}
                 onEditMovements={onEditMovements}
+                onRemove={onRemove}
               />
             </div>
           ))}

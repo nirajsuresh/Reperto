@@ -45,6 +45,7 @@ export interface IStorage {
   updateRepertoireEntry(id: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry | undefined>;
   updateRepertoireByPiece(userId: string, pieceId: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry[]>;
   deleteRepertoireEntry(id: number): Promise<boolean>;
+  deleteRepertoireByPiece(userId: string, pieceId: number): Promise<boolean>;
   updateRepertoireOrder(userId: string, order: { pieceId: number; displayOrder: number }[]): Promise<void>;
   
   getFeedPosts(userId: string, limit?: number): Promise<any[]>;
@@ -267,6 +268,13 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRepertoireEntry(id: number): Promise<boolean> {
     const result = await db.delete(repertoireEntries).where(eq(repertoireEntries.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async deleteRepertoireByPiece(userId: string, pieceId: number): Promise<boolean> {
+    const result = await db.delete(repertoireEntries)
+      .where(and(eq(repertoireEntries.userId, userId), eq(repertoireEntries.pieceId, pieceId)))
+      .returning();
     return result.length > 0;
   }
 

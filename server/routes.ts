@@ -223,6 +223,21 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/repertoire/piece/:pieceId", async (req, res) => {
+    try {
+      const pieceId = parseInt(req.params.pieceId);
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const deleted = await storage.deleteRepertoireByPiece(userId, pieceId);
+      if (!deleted) {
+        return res.status(404).json({ error: "No repertoire entries found for this piece" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete repertoire entries" });
+    }
+  });
+
   app.delete("/api/repertoire/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
