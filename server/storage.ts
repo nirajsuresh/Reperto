@@ -103,9 +103,14 @@ export class DatabaseStorage implements IStorage {
     if (!query.trim()) {
       return db.select().from(composers).orderBy(lastNameOrder);
     }
+    const tokens = query.trim().split(/\s+/).filter(Boolean);
+    const tokenConditions = tokens.map(t => sql`unaccent(${composers.name}) ILIKE unaccent(${'%' + t + '%'})`);
+    const allTokensMatch = sql.join(tokenConditions, sql` AND `);
+    const tokenHits = tokens.map(t => sql`CASE WHEN unaccent(${composers.name}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
+    const tokenScore = sql`(${sql.join(tokenHits, sql` + `)})::float / ${tokens.length}`;
     return db.select().from(composers)
-      .where(sql`unaccent(${composers.name}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${composers.name})) > 0.3`)
-      .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${composers.name})) DESC`, lastNameOrder);
+      .where(sql`(${allTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${composers.name})) > 0.3`)
+      .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${composers.name})), ${tokenScore}) DESC`, lastNameOrder);
   }
 
   async getComposerById(id: number): Promise<Composer | undefined> {
@@ -127,22 +132,32 @@ export class DatabaseStorage implements IStorage {
     };
 
     if (composerId && query.trim()) {
+      const tokens = query.trim().split(/\s+/).filter(Boolean);
+      const tokenConditions = tokens.map(t => sql`unaccent(${pieces.title}) ILIKE unaccent(${'%' + t + '%'})`);
+      const allTokensMatch = sql.join(tokenConditions, sql` AND `);
+      const tokenHits = tokens.map(t => sql`CASE WHEN unaccent(${pieces.title}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
+      const tokenScore = sql`(${sql.join(tokenHits, sql` + `)})::float / ${tokens.length}`;
       return db.select(selectFields).from(pieces)
         .innerJoin(composers, eq(pieces.composerId, composers.id))
-        .where(sql`${pieces.composerId} = ${composerId} AND (unaccent(${pieces.title}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${pieces.title})) > 0.3)`)
-        .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${pieces.title})) DESC`, pieces.title);
+        .where(sql`${pieces.composerId} = ${composerId} AND ((${allTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${pieces.title})) > 0.3)`)
+        .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieces.title})), ${tokenScore}) DESC`, pieces.title);
     } else if (composerId) {
       return db.select(selectFields).from(pieces)
         .innerJoin(composers, eq(pieces.composerId, composers.id))
         .where(eq(pieces.composerId, composerId));
     } else if (query.trim()) {
       const combined = sql`(${pieces.title} || ' ' || ${composers.name})`;
+      const tokens = query.trim().split(/\s+/).filter(Boolean);
+      const tokenConditions = tokens.map(t => sql`unaccent(${combined}) ILIKE unaccent(${'%' + t + '%'})`);
+      const allTokensMatch = sql.join(tokenConditions, sql` AND `);
+      const tokenHits = tokens.map(t => sql`CASE WHEN unaccent(${combined}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
+      const tokenScore = sql`(${sql.join(tokenHits, sql` + `)})::float / ${tokens.length}`;
       return db.select(selectFields).from(pieces)
         .innerJoin(composers, eq(pieces.composerId, composers.id))
         .where(
-          sql`unaccent(${pieces.title}) ILIKE unaccent(${'%' + query + '%'}) OR unaccent(${composers.name}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${combined})) > 0.3`
+          sql`(${allTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${combined})) > 0.3`
         )
-        .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${combined})) DESC`, pieces.title)
+        .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${combined})), ${tokenScore}) DESC`, pieces.title)
         .limit(50);
     }
     return db.select(selectFields).from(pieces)
@@ -420,18 +435,31 @@ export class DatabaseStorage implements IStorage {
   }[]> {
     if (!query.trim()) return [];
 
+    const tokens = query.trim().split(/\s+/).filter(Boolean);
+    const pieceCombined = sql`(${pieces.title} || ' ' || ${composers.name})`;
+    const pieceTokenConditions = tokens.map(t => sql`unaccent(${pieceCombined}) ILIKE unaccent(${'%' + t + '%'})`);
+    const pieceAllTokensMatch = sql.join(pieceTokenConditions, sql` AND `);
+    const pieceTokenHits = tokens.map(t => sql`CASE WHEN unaccent(${pieceCombined}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
+    const pieceTokenScore = sql`(${sql.join(pieceTokenHits, sql` + `)})::float / ${tokens.length}`;
+
     const pieceResults = await db.select({
       composerId: pieces.composerId,
       composerName: composers.name,
       pieceId: pieces.id,
       pieceTitle: pieces.title,
-      score: sql<number>`word_similarity(unaccent(${query}), unaccent(${pieces.title} || ' ' || ${composers.name}))`,
+      score: sql<number>`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieceCombined})), ${pieceTokenScore})`,
     })
       .from(pieces)
       .innerJoin(composers, eq(pieces.composerId, composers.id))
-      .where(sql`unaccent(${pieces.title} || ' ' || ${composers.name}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${pieces.title} || ' ' || ${composers.name})) > 0.3`)
-      .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${pieces.title} || ' ' || ${composers.name})) DESC`)
+      .where(sql`(${pieceAllTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${pieceCombined})) > 0.3`)
+      .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieceCombined})), ${pieceTokenScore}) DESC`)
       .limit(15);
+
+    const mvtCombined = sql`(${movements.name} || ' ' || ${pieces.title} || ' ' || ${composers.name})`;
+    const mvtTokenConditions = tokens.map(t => sql`unaccent(${mvtCombined}) ILIKE unaccent(${'%' + t + '%'})`);
+    const mvtAllTokensMatch = sql.join(mvtTokenConditions, sql` AND `);
+    const mvtTokenHits = tokens.map(t => sql`CASE WHEN unaccent(${mvtCombined}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
+    const mvtTokenScore = sql`(${sql.join(mvtTokenHits, sql` + `)})::float / ${tokens.length}`;
 
     const movementResults = await db.select({
       composerId: pieces.composerId,
@@ -440,13 +468,13 @@ export class DatabaseStorage implements IStorage {
       pieceTitle: pieces.title,
       movementId: movements.id,
       movementName: movements.name,
-      score: sql<number>`word_similarity(unaccent(${query}), unaccent(${movements.name} || ' ' || ${pieces.title} || ' ' || ${composers.name}))`,
+      score: sql<number>`GREATEST(word_similarity(unaccent(${query}), unaccent(${mvtCombined})), ${mvtTokenScore})`,
     })
       .from(movements)
       .innerJoin(pieces, eq(movements.pieceId, pieces.id))
       .innerJoin(composers, eq(pieces.composerId, composers.id))
-      .where(sql`unaccent(${movements.name} || ' ' || ${pieces.title}) ILIKE unaccent(${'%' + query + '%'}) OR word_similarity(unaccent(${query}), unaccent(${movements.name} || ' ' || ${pieces.title} || ' ' || ${composers.name})) > 0.3`)
-      .orderBy(sql`word_similarity(unaccent(${query}), unaccent(${movements.name} || ' ' || ${pieces.title} || ' ' || ${composers.name})) DESC`)
+      .where(sql`(${mvtAllTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${mvtCombined})) > 0.3`)
+      .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${mvtCombined})), ${mvtTokenScore}) DESC`)
       .limit(15);
 
     const combined = [
