@@ -113,7 +113,7 @@ function DroppableColumn({
     <div
       ref={setNodeRef}
       className={cn(
-        "flex flex-col rounded-lg transition-colors flex-1 min-w-0",
+        "flex flex-col rounded-lg transition-colors flex-1 min-w-0 min-h-0",
         isOver ? "bg-primary/5 ring-2 ring-primary/20" : "bg-muted/20"
       )}
       data-testid={`board-column-${status.toLowerCase().replace(/\s+/g, "-")}`}
