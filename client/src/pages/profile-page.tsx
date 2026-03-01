@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PianoAvatar } from "@/components/piano-avatars";
-import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3, MoreHorizontal, SplitSquareHorizontal, Merge, Pencil, X } from "lucide-react";
+import { MapPin, Edit2, Music2, TrendingUp, Sparkles, Activity, ChevronDown, ChevronUp, ArrowUpDown, Trash2, GripVertical, List, Columns3, MoreHorizontal, SplitSquareHorizontal, Merge, Pencil, X, Heart, MessageCircle, Send, Music } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AddPieceDialog, type NewPieceData } from "@/components/add-piece-dialog";
@@ -26,7 +26,7 @@ import { getStatusColor } from "@/lib/status-colors";
 import { Link, useLocation } from "wouter";
 import { RepertoireBoard } from "@/components/repertoire-board";
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -561,44 +561,28 @@ export default function ProfilePage() {
                     <Activity className="w-6 h-6 text-primary" />
                     <h2 className="font-serif text-2xl font-bold">Activity Log</h2>
                   </div>
+
+                  {/* Compose box */}
+                  <ActivityComposeBox userId={userId} onPost={() => queryClient.invalidateQueries({ queryKey: [`/api/activity/${userId}`] })} />
+
                   {activityLog.length === 0 ? (
                     <Card className="border-none shadow-sm">
                       <CardContent className="py-12 text-center">
                         <Activity className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
-                        <p className="text-muted-foreground">No activity yet. Start adding pieces to your repertoire to track your progress.</p>
+                        <p className="text-muted-foreground">No activity yet. Share what you're working on above.</p>
                       </CardContent>
                     </Card>
                   ) : (
-                    <Card className="border-none shadow-sm divide-y">
-                      {activityLog.map((log: any) => {
-                        const pieceName = [log.composerName, log.pieceTitle].filter(Boolean).join(" — ");
-                        const timeAgo = log.createdAt ? formatDistanceToNow(new Date(log.createdAt), { addSuffix: true }) : "";
-                        return (
-                          <div key={log.id} className="p-4 flex items-center justify-between group hover:bg-muted/30 transition-colors" data-testid={`activity-entry-${log.id}`}>
-                            <div className="flex items-center gap-4">
-                              <div className={cn(
-                                "w-2 h-2 rounded-full",
-                                log.type === "added_piece" ? "bg-[#c47a5a]" : "bg-[#8b7040]"
-                              )} />
-                              <p className="text-sm">
-                                {log.type === "added_piece" && <>Added <span className="font-serif italic font-bold">{pieceName}</span> to repertoire</>}
-                                {log.type === "status_change" && <>Moved <span className="font-serif italic font-bold">{pieceName}</span> to <span className="font-semibold">{log.content}</span></>}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{timeAgo}</span>
-                              <button
-                                onClick={() => deleteActivityMutation.mutate(log.id)}
-                                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                                data-testid={`delete-activity-${log.id}`}
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </Card>
+                    <div className="space-y-3">
+                      {activityLog.map((log: any) => (
+                        <ActivityEntry
+                          key={log.id}
+                          log={log}
+                          userId={userId}
+                          onDelete={() => deleteActivityMutation.mutate(log.id)}
+                        />
+                      ))}
+                    </div>
                   )}
                 </div>
 
@@ -705,6 +689,125 @@ export default function ProfilePage() {
         />
       )}
     </Layout>
+  );
+}
+
+function ActivityComposeBox({ userId, onPost }: { userId: string; onPost: () => void }) {
+  const [text, setText] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePost = async () => {
+    if (!text.trim()) return;
+    setIsPosting(true);
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ content: text.trim(), type: "text" }),
+      });
+      if (res.ok) {
+        setText("");
+        onPost();
+      }
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      handlePost();
+    }
+  };
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardContent className="p-4">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Share a practice note, milestone, or thought..."
+          className="w-full min-h-[72px] resize-none text-sm bg-muted/30 rounded-md p-3 border border-border/50 focus:outline-none focus:border-[#d4967c]/50 focus:ring-0 placeholder:text-muted-foreground"
+          rows={3}
+        />
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-xs text-muted-foreground">⌘+Enter to post</p>
+          <Button
+            onClick={handlePost}
+            disabled={!text.trim() || isPosting}
+            className="bg-[#d4967c] hover:bg-[#c47a5a] text-white"
+            size="sm"
+          >
+            <Send className="w-3.5 h-3.5 mr-1.5" />
+            Post
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActivityEntry({ log, userId, onDelete }: { log: any; userId: string; onDelete: () => void }) {
+  const pieceName = [log.composerName, log.pieceTitle].filter(Boolean).join(" — ");
+  const timeAgo = log.createdAt ? formatDistanceToNow(new Date(log.createdAt), { addSuffix: true }) : "";
+
+  function getActivityText() {
+    switch (log.type) {
+      case "added_piece":
+        return <p className="text-sm">Added <span className="font-serif italic font-bold">{pieceName}</span> to repertoire</p>;
+      case "status_change":
+        return <p className="text-sm">Moved <span className="font-serif italic font-bold">{pieceName}</span> to <span className="font-semibold">{log.content}</span></p>;
+      case "text":
+        return (
+          <div>
+            {log.content && <p className="text-sm leading-relaxed">{log.content}</p>}
+            {pieceName && (
+              <div className="inline-flex items-center gap-1.5 mt-1 px-2 py-1 bg-muted/50 rounded text-xs">
+                <Music className="w-3 h-3 text-[#d4967c]" />
+                {pieceName}
+              </div>
+            )}
+          </div>
+        );
+      default:
+        return <p className="text-sm">{log.content || log.type}</p>;
+    }
+  }
+
+  const dotColor = log.type === "added_piece" ? "bg-[#c47a5a]"
+    : log.type === "status_change" ? "bg-[#8b7040]"
+    : "bg-[#d4967c]";
+
+  return (
+    <Card className="border-none shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-2 group">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div className={cn("w-2 h-2 rounded-full mt-1.5 shrink-0", dotColor)} />
+            <div className="flex-1 min-w-0">
+              {getActivityText()}
+              <div className="flex items-center gap-3 mt-2">
+                <span className="text-xs text-muted-foreground">{timeAgo}</span>
+                {(log.likeCount ?? 0) > 0 && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Heart className="w-3 h-3" />
+                    {log.likeCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={onDelete}
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+            data-testid={`delete-activity-${log.id}`}
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

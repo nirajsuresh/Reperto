@@ -178,23 +178,6 @@ export async function registerRoutes(
   app.post("/api/repertoire", async (req, res) => {
     try {
       const entry = await storage.createRepertoireEntry(req.body);
-
-      if (req.body.pieceId && req.body.userId) {
-        const tenSecondsAgo = new Date(Date.now() - 10000);
-        const recentActivity = await storage.getUserActivityLog(req.body.userId, 5);
-        const alreadyLogged = recentActivity.some(
-          (a: any) => a.type === "added_piece" && a.pieceId === req.body.pieceId && a.createdAt && new Date(a.createdAt) > tenSecondsAgo
-        );
-        if (!alreadyLogged) {
-          await storage.createPost({
-            userId: req.body.userId,
-            type: "added_piece",
-            content: "Added to repertoire",
-            pieceId: req.body.pieceId,
-          });
-        }
-      }
-
       res.status(201).json(entry);
     } catch (error) {
       res.status(500).json({ error: "Failed to create repertoire entry" });
@@ -220,24 +203,6 @@ export async function registerRoutes(
       const userId = req.headers["x-user-id"] as string;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
       const updated = await storage.updateRepertoireByPiece(userId, pieceId, req.body);
-
-      if (req.body.status && req.body.status !== "Shelved") {
-        try {
-          const recent = await storage.getUserActivityLog(userId, 5);
-          const alreadyLogged = recent.some(
-            (a: any) => a.type === "status_change" && a.pieceId === pieceId && a.content === req.body.status && a.createdAt && new Date(a.createdAt) > new Date(Date.now() - 10000)
-          );
-          if (!alreadyLogged) {
-            await storage.createPost({
-              userId,
-              type: "status_change",
-              content: req.body.status,
-              pieceId,
-            });
-          }
-        } catch (e) {}
-      }
-
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update repertoire entries" });
@@ -251,27 +216,6 @@ export async function registerRoutes(
       if (!updated) {
         return res.status(404).json({ error: "Repertoire entry not found" });
       }
-
-      if (req.body.status && req.body.status !== "Shelved" && updated) {
-        const userId = req.headers["x-user-id"] as string;
-        if (userId) {
-          try {
-            const recent = await storage.getUserActivityLog(userId, 5);
-            const alreadyLogged = recent.some(
-              (a: any) => a.type === "status_change" && a.pieceId === updated.pieceId && a.content === req.body.status && a.createdAt && new Date(a.createdAt) > new Date(Date.now() - 10000)
-            );
-            if (!alreadyLogged) {
-              await storage.createPost({
-                userId,
-                type: "status_change",
-                content: req.body.status,
-                pieceId: updated.pieceId,
-              });
-            }
-          } catch (e) {}
-        }
-      }
-
       res.json(updated);
     } catch (error) {
       res.status(500).json({ error: "Failed to update repertoire entry" });
@@ -309,8 +253,9 @@ export async function registerRoutes(
   app.get("/api/feed/:userId", async (req, res) => {
     try {
       const userId = req.params.userId;
+      const viewerUserId = req.headers["x-user-id"] as string || userId;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
-      const posts = await storage.getFeedPosts(userId, limit);
+      const posts = await storage.getFeedPosts(userId, limit, viewerUserId);
       res.json(posts);
     } catch (error) {
       res.status(500).json({ error: "Failed to get feed posts" });
@@ -320,10 +265,6 @@ export async function registerRoutes(
   app.get("/api/activity/:userId", async (req, res) => {
     try {
       const userId = req.params.userId;
-      const requestingUser = req.headers["x-user-id"] as string;
-      if (!requestingUser || requestingUser !== userId) {
-        return res.status(403).json({ error: "Not authorized" });
-      }
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 30;
       const activity = await storage.getUserActivityLog(userId, limit);
       res.json(activity);
@@ -337,9 +278,8 @@ export async function registerRoutes(
       const id = parseInt(req.params.id);
       const userId = req.headers["x-user-id"] as string;
       if (!userId) return res.status(401).json({ error: "Not authenticated" });
-      const activity = await storage.getUserActivityLog(userId, 100);
-      const owns = activity.some((a: any) => a.id === id);
-      if (!owns) {
+      const post = await storage.getPostById(id);
+      if (!post || post.userId !== userId) {
         return res.status(403).json({ error: "Not authorized to delete this entry" });
       }
       const deleted = await storage.deletePost(id);
@@ -349,6 +289,99 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete activity entry" });
+    }
+  });
+
+  // Manual post creation
+  app.post("/api/posts", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const { content, pieceId, type } = req.body;
+      if (!content && !pieceId) {
+        return res.status(400).json({ error: "content or pieceId is required" });
+      }
+      const post = await storage.createPost({
+        userId,
+        type: type || "text",
+        content: content || null,
+        pieceId: pieceId || null,
+      });
+      res.status(201).json(post);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to create post" });
+    }
+  });
+
+  // Like a post
+  app.post("/api/posts/:id/like", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const postId = parseInt(req.params.id);
+      await storage.likePost(postId, userId);
+      const likeCount = await storage.getPostLikeCount(postId);
+      res.json({ likeCount, userLiked: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to like post" });
+    }
+  });
+
+  // Unlike a post
+  app.delete("/api/posts/:id/like", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const postId = parseInt(req.params.id);
+      await storage.unlikePost(postId, userId);
+      const likeCount = await storage.getPostLikeCount(postId);
+      res.json({ likeCount, userLiked: false });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unlike post" });
+    }
+  });
+
+  // Get comments for a post
+  app.get("/api/posts/:id/comments", async (req, res) => {
+    try {
+      const postId = parseInt(req.params.id);
+      const comments = await storage.getPostComments(postId);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get comments" });
+    }
+  });
+
+  // Add comment to a post
+  app.post("/api/posts/:id/comments", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const postId = parseInt(req.params.id);
+      const { content } = req.body;
+      if (!content?.trim()) {
+        return res.status(400).json({ error: "content is required" });
+      }
+      const comment = await storage.addPostComment(postId, userId, content.trim());
+      res.status(201).json(comment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to add comment" });
+    }
+  });
+
+  // Delete a comment
+  app.delete("/api/posts/comments/:id", async (req, res) => {
+    try {
+      const userId = req.headers["x-user-id"] as string;
+      if (!userId) return res.status(401).json({ error: "Not authenticated" });
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deletePostComment(id);
+      if (!deleted) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete comment" });
     }
   });
 

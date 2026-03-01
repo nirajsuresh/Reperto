@@ -1,13 +1,15 @@
 import { Layout } from "@/components/layout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Music, Target, Clock, Trophy, MessageCircle, Play, Calendar, ChevronRight, Sparkles, UserPlus } from "lucide-react";
+import { Music, Target, Clock, Trophy, MessageCircle, Play, Calendar, ChevronRight, Sparkles, UserPlus, Heart, Send, ChevronDown, ChevronUp, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useState, useRef } from "react";
 
 interface FeedPost {
   id: number;
@@ -22,6 +24,19 @@ interface FeedPost {
   avatarUrl: string | null;
   pieceTitle: string | null;
   composerName: string | null;
+  likeCount: number;
+  userLiked: boolean;
+  commentCount: number;
+}
+
+interface PostComment {
+  id: number;
+  postId: number;
+  userId: string;
+  content: string;
+  createdAt: string;
+  displayName: string | null;
+  avatarUrl: string | null;
 }
 
 interface Challenge {
@@ -46,6 +61,7 @@ interface SuggestedUser {
 function getPostIcon(type: string) {
   switch (type) {
     case "status_change": return <Music className="w-4 h-4" />;
+    case "added_piece": return <Music className="w-4 h-4" />;
     case "milestone": return <Trophy className="w-4 h-4" />;
     case "practice_log": return <Clock className="w-4 h-4" />;
     case "recording": return <Play className="w-4 h-4" />;
@@ -56,6 +72,7 @@ function getPostIcon(type: string) {
 function getPostTypeLabel(type: string) {
   switch (type) {
     case "status_change": return "Repertoire Update";
+    case "added_piece": return "Added Piece";
     case "milestone": return "Milestone";
     case "practice_log": return "Practice Log";
     case "recording": return "Recording";
@@ -68,9 +85,68 @@ function getInitials(name: string | null) {
   return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function PostCard({ post }: { post: FeedPost }) {
+function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined }) {
+  const queryClient = useQueryClient();
   const timeAgo = post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : "";
-  
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const { data: comments = [], isLoading: commentsLoading } = useQuery<PostComment[]>({
+    queryKey: [`/api/posts/${post.id}/comments`],
+    queryFn: async () => {
+      const res = await fetch(`/api/posts/${post.id}/comments`);
+      if (!res.ok) throw new Error("Failed to fetch comments");
+      return res.json();
+    },
+    enabled: showComments,
+  });
+
+  const likeMutation = useMutation({
+    mutationFn: async () => {
+      const method = post.userLiked ? "DELETE" : "POST";
+      const res = await fetch(`/api/posts/${post.id}/like`, {
+        method,
+        headers: { "x-user-id": userId || "" },
+      });
+      if (!res.ok) throw new Error("Failed to toggle like");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+    },
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const res = await fetch(`/api/posts/${post.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId || "" },
+        body: JSON.stringify({ content }),
+      });
+      if (!res.ok) throw new Error("Failed to post comment");
+      return res.json();
+    },
+    onSuccess: () => {
+      setCommentText("");
+      queryClient.invalidateQueries({ queryKey: [`/api/posts/${post.id}/comments`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+    },
+  });
+
+  const handleComment = () => {
+    if (commentText.trim()) {
+      commentMutation.mutate(commentText.trim());
+    }
+  };
+
+  const handleCommentKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleComment();
+    }
+  };
+
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-border/50 hover:shadow-md transition-shadow" data-testid={`post-card-${post.id}`}>
       <CardContent className="p-5">
@@ -81,7 +157,7 @@ function PostCard({ post }: { post: FeedPost }) {
               {getInitials(post.displayName)}
             </AvatarFallback>
           </Avatar>
-          
+
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-semibold text-foreground" data-testid={`post-author-${post.id}`}>
@@ -92,16 +168,16 @@ function PostCard({ post }: { post: FeedPost }) {
                 {getPostTypeLabel(post.type)}
               </Badge>
             </div>
-            
+
             <p className="text-muted-foreground text-sm mb-3" data-testid={`post-time-${post.id}`}>{timeAgo}</p>
-            
+
             {post.content && (
               <p className="text-foreground mb-3 leading-relaxed" data-testid={`post-content-${post.id}`}>{post.content}</p>
             )}
-            
+
             {post.pieceTitle && post.composerName && (
               <Link href={`/piece/${post.pieceId}`}>
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer" data-testid={`post-piece-${post.id}`}>
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer mb-3" data-testid={`post-piece-${post.id}`}>
                   <Music className="w-4 h-4 text-[#d4967c]" />
                   <span className="text-sm">
                     <span className="font-medium">{post.pieceTitle}</span>
@@ -110,7 +186,7 @@ function PostCard({ post }: { post: FeedPost }) {
                 </div>
               </Link>
             )}
-            
+
             {post.recordingUrl && (
               <div className="mt-3 p-4 bg-[#d4967c]/5 rounded-lg border border-[#d4967c]/20" data-testid={`post-recording-${post.id}`}>
                 <div className="flex items-center gap-3">
@@ -124,11 +200,95 @@ function PostCard({ post }: { post: FeedPost }) {
                 </div>
               </div>
             )}
-            
+
             {post.practiceHours && post.type === "milestone" && (
               <div className="mt-3 flex items-center gap-2 text-[#d4967c]" data-testid={`post-milestone-${post.id}`}>
                 <Trophy className="w-5 h-5" />
                 <span className="font-semibold">{post.practiceHours} hours</span>
+              </div>
+            )}
+
+            {/* Like and comment actions */}
+            <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border/30">
+              <button
+                onClick={() => likeMutation.mutate()}
+                disabled={!userId || likeMutation.isPending}
+                className={`flex items-center gap-1.5 text-sm transition-colors ${
+                  post.userLiked
+                    ? "text-[#d4967c]"
+                    : "text-muted-foreground hover:text-[#d4967c]"
+                }`}
+                data-testid={`like-button-${post.id}`}
+              >
+                <Heart className={`w-4 h-4 ${post.userLiked ? "fill-current" : ""}`} />
+                <span>{post.likeCount > 0 ? post.likeCount : ""}</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowComments(!showComments);
+                  if (!showComments) {
+                    setTimeout(() => commentInputRef.current?.focus(), 100);
+                  }
+                }}
+                className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                data-testid={`comment-button-${post.id}`}
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{post.commentCount > 0 ? post.commentCount : "Comment"}</span>
+              </button>
+            </div>
+
+            {/* Comments section */}
+            {showComments && (
+              <div className="mt-3 space-y-3">
+                {commentsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-full" />
+                    <Skeleton className="h-8 w-3/4" />
+                  </div>
+                ) : comments.length > 0 ? (
+                  <div className="space-y-2">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="flex items-start gap-2">
+                        <Avatar className="h-6 w-6 shrink-0 mt-0.5">
+                          <AvatarImage src={comment.avatarUrl || undefined} />
+                          <AvatarFallback className="bg-[#d4967c]/10 text-[#d4967c] text-xs font-semibold">
+                            {getInitials(comment.displayName)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 bg-muted/40 rounded-lg px-3 py-2">
+                          <span className="text-xs font-semibold text-foreground mr-2">{comment.displayName || "Anonymous"}</span>
+                          <span className="text-sm text-foreground">{comment.content}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No comments yet. Be the first!</p>
+                )}
+
+                {userId && (
+                  <div className="flex items-end gap-2">
+                    <Textarea
+                      ref={commentInputRef}
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={handleCommentKeyDown}
+                      placeholder="Add a comment..."
+                      className="min-h-[60px] resize-none text-sm"
+                      rows={2}
+                    />
+                    <Button
+                      size="icon"
+                      onClick={handleComment}
+                      disabled={!commentText.trim() || commentMutation.isPending}
+                      className="shrink-0 bg-[#d4967c] hover:bg-[#c47a5a] text-white"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -138,11 +298,67 @@ function PostCard({ post }: { post: FeedPost }) {
   );
 }
 
+function ComposeBox({ userId, onPost }: { userId: string; onPost: () => void }) {
+  const [text, setText] = useState("");
+  const [isPosting, setIsPosting] = useState(false);
+
+  const handlePost = async () => {
+    if (!text.trim()) return;
+    setIsPosting(true);
+    try {
+      const res = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        body: JSON.stringify({ content: text.trim(), type: "text" }),
+      });
+      if (res.ok) {
+        setText("");
+        onPost();
+      }
+    } finally {
+      setIsPosting(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      handlePost();
+    }
+  };
+
+  return (
+    <Card className="bg-white/80 backdrop-blur-sm border-border/50 mb-6">
+      <CardContent className="p-4">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Share what you're working on..."
+          className="min-h-[80px] resize-none mb-3 border-border/50 focus:border-[#d4967c]/50"
+          rows={3}
+        />
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">⌘+Enter to post</p>
+          <Button
+            onClick={handlePost}
+            disabled={!text.trim() || isPosting}
+            className="bg-[#d4967c] hover:bg-[#c47a5a] text-white"
+            size="sm"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            Post
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function ChallengeCard({ challenge }: { challenge: Challenge }) {
-  const daysRemaining = challenge.deadline 
+  const daysRemaining = challenge.deadline
     ? Math.ceil((new Date(challenge.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
     : null;
-  
+
   return (
     <Card className="bg-gradient-to-br from-[#d4967c]/10 to-[#d4967c]/5 border-[#d4967c]/30 hover:border-[#d4967c]/50 transition-colors" data-testid={`challenge-card-${challenge.id}`}>
       <CardContent className="p-4">
@@ -215,7 +431,8 @@ function FeedSkeleton() {
 
 export default function FeedPage() {
   const username = localStorage.getItem("username") || "niraj_suresh";
-  
+  const queryClient = useQueryClient();
+
   const { data: userInfo } = useQuery<{ id: string } | null>({
     queryKey: ["/api/users/lookup", username],
     queryFn: async () => {
@@ -231,7 +448,9 @@ export default function FeedPage() {
     queryKey: ["/api/feed", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const res = await fetch(`/api/feed/${userId}`);
+      const res = await fetch(`/api/feed/${userId}`, {
+        headers: { "x-user-id": userId },
+      });
       if (!res.ok) throw new Error("Failed to fetch feed");
       return res.json();
     },
@@ -258,27 +477,35 @@ export default function FeedPage() {
     enabled: !!userId,
   });
 
+  const handleNewPost = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/feed", userId] });
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
         <div className="container mx-auto px-4 py-8 max-w-7xl">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
+
             <div className="lg:col-span-8">
               <div className="flex items-center justify-between mb-6">
                 <h1 className="font-serif text-3xl font-bold text-primary" data-testid="feed-title">Your Feed</h1>
-                <Button variant="outline" size="sm" className="text-sm" data-testid="button-refresh-feed">
+                <Button variant="outline" size="sm" className="text-sm" onClick={handleNewPost} data-testid="button-refresh-feed">
                   <Sparkles className="w-4 h-4 mr-2" />
                   Refresh
                 </Button>
               </div>
-              
+
+              {userId && (
+                <ComposeBox userId={userId} onPost={handleNewPost} />
+              )}
+
               {postsLoading ? (
                 <FeedSkeleton />
               ) : posts && posts.length > 0 ? (
                 <div className="space-y-4" data-testid="feed-posts-list">
                   {posts.map((post) => (
-                    <PostCard key={post.id} post={post} />
+                    <PostCard key={post.id} post={post} userId={userId} />
                   ))}
                 </div>
               ) : (
@@ -286,7 +513,7 @@ export default function FeedPage() {
                   <CardContent className="p-12 text-center">
                     <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
-                    <p className="text-muted-foreground mb-4">Follow other musicians to see their updates here.</p>
+                    <p className="text-muted-foreground mb-4">Follow other musicians to see their updates here, or share your first post above.</p>
                     <Link href="/search">
                       <Button variant="outline" data-testid="button-discover-musicians">
                         Discover Musicians
@@ -297,7 +524,7 @@ export default function FeedPage() {
                 </Card>
               )}
             </div>
-            
+
             <div className="lg:col-span-4 space-y-6">
               <Card className="bg-white/80 backdrop-blur-sm border-border/50">
                 <CardHeader className="pb-3">
@@ -320,7 +547,7 @@ export default function FeedPage() {
                   ) : (
                     <p className="text-muted-foreground text-sm">No active challenges</p>
                   )}
-                  
+
                   {challenges && challenges.length > 3 && (
                     <Button variant="ghost" className="w-full text-sm text-[#d4967c] hover:text-[#d4967c]" data-testid="button-view-all-challenges">
                       View All Challenges
@@ -329,7 +556,7 @@ export default function FeedPage() {
                   )}
                 </CardContent>
               </Card>
-              
+
               <Card className="bg-white/80 backdrop-blur-sm border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -349,7 +576,7 @@ export default function FeedPage() {
                   )}
                 </CardContent>
               </Card>
-              
+
               <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
                 <CardContent className="p-5">
                   <h4 className="font-semibold mb-2 flex items-center gap-2">

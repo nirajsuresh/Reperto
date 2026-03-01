@@ -1,10 +1,11 @@
-import { 
+import {
   type User, type InsertUser,
   type Composer, type InsertComposer,
   type Piece, type InsertPiece,
   type Movement, type InsertMovement,
   type RepertoireEntry, type InsertRepertoireEntry,
   type Post, type InsertPost,
+  type PostLike, type PostComment,
   type Challenge, type InsertChallenge,
   type UserProfile, type InsertUserProfile,
   type Follow, type InsertFollow,
@@ -12,7 +13,7 @@ import {
   type PieceComment, type InsertPieceComment,
   type PieceAnalysis, type InsertPieceAnalysis,
   type Connection, type InsertConnection,
-  users, composers, pieces, movements, repertoireEntries, posts, challenges, userProfiles, follows,
+  users, composers, pieces, movements, repertoireEntries, posts, postLikes, postComments, challenges, userProfiles, follows,
   pieceRatings, pieceComments, pieceAnalyses, connections
 } from "@shared/schema";
 import { db } from "./db";
@@ -51,7 +52,15 @@ export interface IStorage {
   createPost(post: InsertPost): Promise<Post>;
   getUserActivityLog(userId: string, limit?: number): Promise<any[]>;
   deletePost(id: number): Promise<boolean>;
-  getFeedPosts(userId: string, limit?: number): Promise<any[]>;
+  getPostById(id: number): Promise<Post | undefined>;
+  getFeedPosts(userId: string, limit?: number, viewerUserId?: string): Promise<any[]>;
+  likePost(postId: number, userId: string): Promise<void>;
+  unlikePost(postId: number, userId: string): Promise<void>;
+  getPostLikeCount(postId: number): Promise<number>;
+  hasUserLikedPost(postId: number, userId: string): Promise<boolean>;
+  addPostComment(postId: number, userId: string, content: string): Promise<PostComment>;
+  getPostComments(postId: number): Promise<any[]>;
+  deletePostComment(id: number): Promise<boolean>;
   getActiveChallenges(): Promise<Challenge[]>;
   getRecordingPosts(limit?: number): Promise<any[]>;
   getUserProfile(userId: string): Promise<UserProfile | undefined>;
@@ -290,12 +299,14 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .select({
         id: posts.id,
+        userId: posts.userId,
         type: posts.type,
         content: posts.content,
         pieceId: posts.pieceId,
         createdAt: posts.createdAt,
         pieceTitle: pieces.title,
         composerName: composers.name,
+        likeCount: sql<number>`(SELECT COUNT(*) FROM post_likes WHERE post_id = ${posts.id})::int`,
       })
       .from(posts)
       .leftJoin(pieces, eq(posts.pieceId, pieces.id))
@@ -306,15 +317,21 @@ export class DatabaseStorage implements IStorage {
     return results;
   }
 
+  async getPostById(id: number): Promise<Post | undefined> {
+    const [post] = await db.select().from(posts).where(eq(posts.id, id));
+    return post;
+  }
+
   async deletePost(id: number): Promise<boolean> {
     const result = await db.delete(posts).where(eq(posts.id, id)).returning();
     return result.length > 0;
   }
 
-  async getFeedPosts(userId: string, limit: number = 20): Promise<any[]> {
+  async getFeedPosts(userId: string, limit: number = 20, viewerUserId?: string): Promise<any[]> {
     const followingIds = await this.getFollowing(userId);
     const allUserIds = [userId, ...followingIds];
-    
+    const viewer = viewerUserId || userId;
+
     const results = await db
       .select({
         id: posts.id,
@@ -329,6 +346,9 @@ export class DatabaseStorage implements IStorage {
         avatarUrl: userProfiles.avatarUrl,
         pieceTitle: pieces.title,
         composerName: composers.name,
+        likeCount: sql<number>`(SELECT COUNT(*) FROM post_likes WHERE post_id = ${posts.id})::int`,
+        userLiked: sql<boolean>`EXISTS(SELECT 1 FROM post_likes WHERE post_id = ${posts.id} AND user_id = ${viewer})`,
+        commentCount: sql<number>`(SELECT COUNT(*) FROM post_comments WHERE post_id = ${posts.id})::int`,
       })
       .from(posts)
       .leftJoin(userProfiles, eq(posts.userId, userProfiles.userId))
@@ -337,8 +357,53 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(posts.userId, allUserIds))
       .orderBy(desc(posts.createdAt))
       .limit(limit);
-    
+
     return results;
+  }
+
+  async likePost(postId: number, userId: string): Promise<void> {
+    await db.insert(postLikes).values({ postId, userId }).onConflictDoNothing();
+  }
+
+  async unlikePost(postId: number, userId: string): Promise<void> {
+    await db.delete(postLikes).where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)));
+  }
+
+  async getPostLikeCount(postId: number): Promise<number> {
+    const [result] = await db.select({ count: count(postLikes.id) }).from(postLikes).where(eq(postLikes.postId, postId));
+    return result?.count ?? 0;
+  }
+
+  async hasUserLikedPost(postId: number, userId: string): Promise<boolean> {
+    const [result] = await db.select().from(postLikes).where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)));
+    return !!result;
+  }
+
+  async addPostComment(postId: number, userId: string, content: string): Promise<PostComment> {
+    const [comment] = await db.insert(postComments).values({ postId, userId, content }).returning();
+    return comment;
+  }
+
+  async getPostComments(postId: number): Promise<any[]> {
+    return db
+      .select({
+        id: postComments.id,
+        postId: postComments.postId,
+        userId: postComments.userId,
+        content: postComments.content,
+        createdAt: postComments.createdAt,
+        displayName: userProfiles.displayName,
+        avatarUrl: userProfiles.avatarUrl,
+      })
+      .from(postComments)
+      .leftJoin(userProfiles, eq(postComments.userId, userProfiles.userId))
+      .where(eq(postComments.postId, postId))
+      .orderBy(postComments.createdAt);
+  }
+
+  async deletePostComment(id: number): Promise<boolean> {
+    const result = await db.delete(postComments).where(eq(postComments.id, id)).returning();
+    return result.length > 0;
   }
 
   async getActiveChallenges(): Promise<Challenge[]> {
