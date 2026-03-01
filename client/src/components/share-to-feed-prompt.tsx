@@ -12,6 +12,8 @@ export interface ShareToFeedPromptProps {
   actionText: string;
   pieceTitle: string;
   composerName: string;
+  /** Specific movement name, if the item is a split movement card */
+  movementName?: string;
   pieceId: number;
   postType: "status_change" | "added_piece" | "text";
 }
@@ -22,6 +24,7 @@ export function ShareToFeedPrompt({
   actionText,
   pieceTitle,
   composerName,
+  movementName,
   pieceId,
   postType,
 }: ShareToFeedPromptProps) {
@@ -42,7 +45,10 @@ export function ShareToFeedPrompt({
     }
     setIsPosting(true);
     try {
-      const content = note.trim() || actionText;
+      const defaultContent = movementName
+        ? `${actionText} — ${movementName}`
+        : actionText;
+      const content = note.trim() || defaultContent;
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": userId },
@@ -77,6 +83,9 @@ export function ShareToFeedPrompt({
             <span className="font-medium text-foreground">{actionText}</span>
             {" — "}
             <span className="font-serif italic">{pieceTitle}</span>
+            {movementName && (
+              <span className="text-muted-foreground">, {movementName}</span>
+            )}
             {composerName && <span className="text-muted-foreground"> by {composerName}</span>}
           </p>
         </SheetHeader>

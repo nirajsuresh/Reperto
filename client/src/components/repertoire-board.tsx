@@ -69,6 +69,8 @@ type SharePromptState = {
   composerName: string;
   pieceId: number;
   newStatus: string;
+  /** Populated only when the card represents a single split movement */
+  movementName?: string;
 } | null;
 
 const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning"] as const;
@@ -401,6 +403,10 @@ export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMo
             composerName: item.composer,
             pieceId: item.pieceId,
             newStatus,
+            // Only include movement name when the card is a split movement row
+            movementName: item.isSplit && item.movements.length === 1
+              ? item.movements[0]
+              : undefined,
           });
         }
       } catch {
@@ -533,6 +539,7 @@ export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMo
           actionText={`Moved to ${sharePrompt.newStatus}`}
           pieceTitle={sharePrompt.pieceTitle}
           composerName={sharePrompt.composerName}
+          movementName={sharePrompt.movementName}
           pieceId={sharePrompt.pieceId}
           postType="status_change"
         />
