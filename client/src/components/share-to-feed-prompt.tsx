@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 export interface ShareToFeedPromptProps {
   open: boolean;
   onClose: () => void;
-  /** Short action description, e.g. "Moved to Refining" or "Added to repertoire" */
+  /** Display text shown in the sheet header, e.g. "Moved to Refining" */
   actionText: string;
   pieceTitle: string;
   composerName: string;
@@ -16,6 +16,12 @@ export interface ShareToFeedPromptProps {
   movementName?: string;
   pieceId: number;
   postType: "status_change" | "added_piece" | "text";
+  /**
+   * For status_change posts: the raw status label (e.g. "Refining").
+   * Used as the stored content base so ActivityEntry can parse it correctly.
+   * If omitted, actionText is used as the content base instead.
+   */
+  newStatus?: string;
 }
 
 export function ShareToFeedPrompt({
@@ -27,6 +33,7 @@ export function ShareToFeedPrompt({
   movementName,
   pieceId,
   postType,
+  newStatus,
 }: ShareToFeedPromptProps) {
   const { toast } = useToast();
   const [note, setNote] = useState("");
@@ -45,10 +52,12 @@ export function ShareToFeedPrompt({
     }
     setIsPosting(true);
     try {
-      const defaultContent = movementName
-        ? `${actionText} — ${movementName}`
-        : actionText;
-      const content = note.trim() || defaultContent;
+      // For status_change posts, store "Refining" or "Refining — I. Andante"
+      // so ActivityEntry can parse it. For other types, store the display text.
+      const contentBase = (postType === "status_change" && newStatus)
+        ? (movementName ? `${newStatus} — ${movementName}` : newStatus)
+        : (movementName ? `${actionText} — ${movementName}` : actionText);
+      const content = note.trim() || contentBase;
       const res = await fetch("/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-user-id": userId },

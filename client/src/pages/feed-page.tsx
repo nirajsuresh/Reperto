@@ -192,11 +192,25 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
 
             <p className="text-muted-foreground text-sm mb-3" data-testid={`post-time-${post.id}`}>{timeAgo}</p>
 
-            {post.content && (
+            {post.type === "status_change" && post.content ? (() => {
+              // content is "Refining" or "Refining — I. Andante con moto"
+              const parts = post.content.split(" — ");
+              const status = parts[0];
+              const movement = parts[1];
+              return (
+                <p className="text-foreground mb-3" data-testid={`post-content-${post.id}`}>
+                  Moved{movement && <> <span className="italic text-muted-foreground">{movement}</span> of</>}{" "}
+                  {post.pieceTitle
+                    ? <Link href={`/piece/${post.pieceId}`}><span className="font-serif italic font-medium hover:underline">{post.pieceTitle}</span></Link>
+                    : <span className="font-serif italic font-medium">this piece</span>
+                  } to <span className="font-semibold">{status}</span>
+                </p>
+              );
+            })() : post.content && (
               <p className="text-foreground mb-3 leading-relaxed" data-testid={`post-content-${post.id}`}>{post.content}</p>
             )}
 
-            {post.pieceTitle && post.composerName && (
+            {post.type !== "status_change" && post.pieceTitle && post.composerName && (
               <Link href={`/piece/${post.pieceId}`}>
                 <div className="inline-flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer mb-3" data-testid={`post-piece-${post.id}`}>
                   <Music className="w-4 h-4 text-[#d4967c]" />

@@ -537,6 +537,7 @@ export function RepertoireBoard({ items, onStatusChange, onToggleSplit, onEditMo
           open={!!sharePrompt}
           onClose={() => setSharePrompt(null)}
           actionText={`Moved to ${sharePrompt.newStatus}`}
+          newStatus={sharePrompt.newStatus}
           pieceTitle={sharePrompt.pieceTitle}
           composerName={sharePrompt.composerName}
           movementName={sharePrompt.movementName}

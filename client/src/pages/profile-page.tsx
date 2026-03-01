@@ -789,8 +789,19 @@ function ActivityEntry({ log, userId, onDelete }: { log: any; userId: string; on
     switch (log.type) {
       case "added_piece":
         return <p className="text-sm">Added <span className="font-serif italic font-bold">{pieceName}</span> to repertoire</p>;
-      case "status_change":
-        return <p className="text-sm">Moved <span className="font-serif italic font-bold">{pieceName}</span> to <span className="font-semibold">{log.content}</span></p>;
+      case "status_change": {
+        // content is "Refining" or "Refining — I. Andante con moto"
+        const parts = (log.content || "").split(" — ");
+        const status = parts[0];
+        const movement = parts[1];
+        return (
+          <p className="text-sm">
+            Moved{movement && <> <span className="text-muted-foreground italic">{movement}</span> of</>}{" "}
+            <span className="font-serif italic font-bold">{pieceName}</span> to{" "}
+            <span className="font-semibold">{status}</span>
+          </p>
+        );
+      }
       case "text":
         return (
           <div>
