@@ -2,14 +2,20 @@ import { Layout } from "@/components/layout";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { formatDistanceToNow } from "date-fns";
-import { Music, Target, Clock, Trophy, MessageCircle, Play, Calendar, ChevronRight, Sparkles, UserPlus, Heart, Send, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Music, Target, Clock, Trophy, MessageCircle, Play, Calendar, ChevronRight, Sparkles, UserPlus, Heart, Send } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
 import { useState, useRef } from "react";
+
+// Read userId directly from localStorage — same source as the rest of the app
+function getStoredUserId(): string {
+  return localStorage.getItem("userId") || "";
+}
 
 interface FeedPost {
   id: number;
@@ -85,12 +91,14 @@ function getInitials(name: string | null) {
   return name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
-function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined }) {
+function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   const timeAgo = post.createdAt ? formatDistanceToNow(new Date(post.createdAt), { addSuffix: true }) : "";
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
+  const authUserId = getStoredUserId();
 
   const { data: comments = [], isLoading: commentsLoading } = useQuery<PostComment[]>({
     queryKey: [`/api/posts/${post.id}/comments`],
@@ -100,6 +108,7 @@ function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined
       return res.json();
     },
     enabled: showComments,
+    staleTime: 0,
   });
 
   const likeMutation = useMutation({
@@ -107,13 +116,19 @@ function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined
       const method = post.userLiked ? "DELETE" : "POST";
       const res = await fetch(`/api/posts/${post.id}/like`, {
         method,
-        headers: { "x-user-id": userId || "" },
+        headers: { "x-user-id": authUserId },
       });
-      if (!res.ok) throw new Error("Failed to toggle like");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || "Failed to like post");
+      }
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+      queryClient.refetchQueries({ queryKey: ["/api/feed", feedUserId] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Couldn't like post", description: err.message, variant: "destructive" });
     },
   });
 
@@ -121,16 +136,22 @@ function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined
     mutationFn: async (content: string) => {
       const res = await fetch(`/api/posts/${post.id}/comments`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": userId || "" },
+        headers: { "Content-Type": "application/json", "x-user-id": authUserId },
         body: JSON.stringify({ content }),
       });
-      if (!res.ok) throw new Error("Failed to post comment");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || "Failed to post comment");
+      }
       return res.json();
     },
     onSuccess: () => {
       setCommentText("");
-      queryClient.invalidateQueries({ queryKey: [`/api/posts/${post.id}/comments`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+      queryClient.refetchQueries({ queryKey: [`/api/posts/${post.id}/comments`] });
+      queryClient.refetchQueries({ queryKey: ["/api/feed", feedUserId] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Couldn't post comment", description: err.message, variant: "destructive" });
     },
   });
 
@@ -212,8 +233,8 @@ function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined
             <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border/30">
               <button
                 onClick={() => likeMutation.mutate()}
-                disabled={!userId || likeMutation.isPending}
-                className={`flex items-center gap-1.5 text-sm transition-colors ${
+                disabled={!authUserId || likeMutation.isPending}
+                className={`flex items-center gap-1.5 text-sm transition-colors disabled:opacity-40 ${
                   post.userLiked
                     ? "text-[#d4967c]"
                     : "text-muted-foreground hover:text-[#d4967c]"
@@ -268,7 +289,7 @@ function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined
                   <p className="text-sm text-muted-foreground">No comments yet. Be the first!</p>
                 )}
 
-                {userId && (
+                {authUserId && (
                   <div className="flex items-end gap-2">
                     <Textarea
                       ref={commentInputRef}
@@ -298,23 +319,31 @@ function PostCard({ post, userId }: { post: FeedPost; userId: string | undefined
   );
 }
 
-function ComposeBox({ userId, onPost }: { userId: string; onPost: () => void }) {
+function ComposeBox({ feedUserId }: { feedUserId: string }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [text, setText] = useState("");
   const [isPosting, setIsPosting] = useState(false);
+  const authUserId = getStoredUserId();
 
   const handlePost = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || !authUserId) return;
     setIsPosting(true);
     try {
       const res = await fetch("/api/posts", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        headers: { "Content-Type": "application/json", "x-user-id": authUserId },
         body: JSON.stringify({ content: text.trim(), type: "text" }),
       });
-      if (res.ok) {
-        setText("");
-        onPost();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `Server error ${res.status}`);
       }
+      setText("");
+      // Force a fresh refetch of the feed
+      await queryClient.refetchQueries({ queryKey: ["/api/feed", feedUserId] });
+    } catch (err: any) {
+      toast({ title: "Couldn't post", description: err.message, variant: "destructive" });
     } finally {
       setIsPosting(false);
     }
@@ -341,12 +370,12 @@ function ComposeBox({ userId, onPost }: { userId: string; onPost: () => void }) 
           <p className="text-xs text-muted-foreground">⌘+Enter to post</p>
           <Button
             onClick={handlePost}
-            disabled={!text.trim() || isPosting}
+            disabled={!text.trim() || isPosting || !authUserId}
             className="bg-[#d4967c] hover:bg-[#c47a5a] text-white"
             size="sm"
           >
             <Send className="w-4 h-4 mr-2" />
-            Post
+            {isPosting ? "Posting..." : "Post"}
           </Button>
         </div>
       </CardContent>
@@ -430,31 +459,22 @@ function FeedSkeleton() {
 }
 
 export default function FeedPage() {
-  const username = localStorage.getItem("username") || "niraj_suresh";
+  // Use localStorage directly — same as the rest of the app
+  const feedUserId = localStorage.getItem("userId") || "";
   const queryClient = useQueryClient();
 
-  const { data: userInfo } = useQuery<{ id: string } | null>({
-    queryKey: ["/api/users/lookup", username],
-    queryFn: async () => {
-      const res = await fetch(`/api/users/lookup/${username}`);
-      if (!res.ok) return null;
-      return res.json();
-    },
-  });
-
-  const userId = userInfo?.id;
-
   const { data: posts, isLoading: postsLoading } = useQuery<FeedPost[]>({
-    queryKey: ["/api/feed", userId],
+    queryKey: ["/api/feed", feedUserId],
     queryFn: async () => {
-      if (!userId) return [];
-      const res = await fetch(`/api/feed/${userId}`, {
-        headers: { "x-user-id": userId },
+      if (!feedUserId) return [];
+      const res = await fetch(`/api/feed/${feedUserId}`, {
+        headers: { "x-user-id": feedUserId },
       });
       if (!res.ok) throw new Error("Failed to fetch feed");
       return res.json();
     },
-    enabled: !!userId,
+    enabled: !!feedUserId,
+    staleTime: 0,
   });
 
   const { data: challenges, isLoading: challengesLoading } = useQuery<Challenge[]>({
@@ -467,19 +487,15 @@ export default function FeedPage() {
   });
 
   const { data: suggestedUsers } = useQuery<SuggestedUser[]>({
-    queryKey: ["/api/users", userId, "suggested"],
+    queryKey: ["/api/users", feedUserId, "suggested"],
     queryFn: async () => {
-      if (!userId) return [];
-      const res = await fetch(`/api/users/${userId}/suggested`);
+      if (!feedUserId) return [];
+      const res = await fetch(`/api/users/${feedUserId}/suggested`);
       if (!res.ok) throw new Error("Failed to fetch suggested users");
       return res.json();
     },
-    enabled: !!userId,
+    enabled: !!feedUserId,
   });
-
-  const handleNewPost = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/feed", userId] });
-  };
 
   return (
     <Layout>
@@ -490,22 +506,26 @@ export default function FeedPage() {
             <div className="lg:col-span-8">
               <div className="flex items-center justify-between mb-6">
                 <h1 className="font-serif text-3xl font-bold text-primary" data-testid="feed-title">Your Feed</h1>
-                <Button variant="outline" size="sm" className="text-sm" onClick={handleNewPost} data-testid="button-refresh-feed">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-sm"
+                  onClick={() => queryClient.refetchQueries({ queryKey: ["/api/feed", feedUserId] })}
+                  data-testid="button-refresh-feed"
+                >
                   <Sparkles className="w-4 h-4 mr-2" />
                   Refresh
                 </Button>
               </div>
 
-              {userId && (
-                <ComposeBox userId={userId} onPost={handleNewPost} />
-              )}
+              {feedUserId && <ComposeBox feedUserId={feedUserId} />}
 
               {postsLoading ? (
                 <FeedSkeleton />
               ) : posts && posts.length > 0 ? (
                 <div className="space-y-4" data-testid="feed-posts-list">
                   {posts.map((post) => (
-                    <PostCard key={post.id} post={post} userId={userId} />
+                    <PostCard key={post.id} post={post} feedUserId={feedUserId} />
                   ))}
                 </div>
               ) : (

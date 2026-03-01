@@ -34,6 +34,7 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 
 const genreData = [
   { genre: "Baroque", value: 50 },
@@ -695,20 +696,26 @@ export default function ProfilePage() {
 function ActivityComposeBox({ userId, onPost }: { userId: string; onPost: () => void }) {
   const [text, setText] = useState("");
   const [isPosting, setIsPosting] = useState(false);
+  const { toast } = useToast();
 
   const handlePost = async () => {
     if (!text.trim()) return;
+    const authUserId = localStorage.getItem("userId") || userId;
     setIsPosting(true);
     try {
       const res = await fetch("/api/posts", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-user-id": userId },
+        headers: { "Content-Type": "application/json", "x-user-id": authUserId },
         body: JSON.stringify({ content: text.trim(), type: "text" }),
       });
-      if (res.ok) {
-        setText("");
-        onPost();
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `Server error ${res.status}`);
       }
+      setText("");
+      onPost();
+    } catch (err: any) {
+      toast({ title: "Couldn't post", description: err.message, variant: "destructive" });
     } finally {
       setIsPosting(false);
     }
