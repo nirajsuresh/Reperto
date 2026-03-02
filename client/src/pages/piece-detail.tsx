@@ -229,7 +229,33 @@ export default function PieceDetailPage() {
               </div>
               <div>
                 <h1 className="font-serif text-4xl font-bold" data-testid="text-piece-title">{pieceData?.title ?? "Loading..."}</h1>
-                <p className="text-xl text-muted-foreground font-serif italic" data-testid="text-piece-composer">{composerData?.name ?? ""}</p>
+                {composerData ? (
+                  <Link href={`/composer/${composerData.id}`}>
+                    <p className="text-xl text-muted-foreground font-serif italic hover:text-primary transition-colors cursor-pointer" data-testid="text-piece-composer">{composerData.name}</p>
+                  </Link>
+                ) : (
+                  <p className="text-xl text-muted-foreground font-serif italic" data-testid="text-piece-composer">{""}</p>
+                )}
+                <div className="flex flex-wrap items-center gap-3 mt-1 mb-1">
+                  {pieceData?.imslpUrl && (
+                    <a
+                      href={pieceData.imslpUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1"
+                      data-testid="link-imslp"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Sheet music (IMSLP)
+                    </a>
+                  )}
+                  {statusDistribution && statusDistribution.length > 0 && (
+                    <span className="text-xs text-muted-foreground flex items-center gap-1" data-testid="text-learner-count">
+                      <Users className="w-3 h-3" />
+                      {statusDistribution.reduce((acc: number, s: any) => acc + s.count, 0)} users learning
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3 mt-2">
                   <StarRating rating={ratingSummary?.averageRating ?? 0} />
                   <span className="text-sm font-medium text-muted-foreground" data-testid="text-rating-value">

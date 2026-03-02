@@ -30,6 +30,62 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/composers/:id/community", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const stats = await storage.getComposerCommunityStats(id);
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get community stats" });
+    }
+  });
+
+  app.get("/api/composers/:id/pieces", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const pieces = await storage.getComposerPiecesWithCounts(id);
+      res.json(pieces);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get composer pieces" });
+    }
+  });
+
+  app.get("/api/composers/:id/follow-status", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = req.query.userId as string;
+      if (!userId) return res.status(400).json({ error: "userId required" });
+      const following = await storage.isFollowingComposer(userId, id);
+      res.json({ following });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get follow status" });
+    }
+  });
+
+  app.post("/api/composers/:id/follow", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId required" });
+      await storage.followComposer(userId, id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to follow composer" });
+    }
+  });
+
+  app.delete("/api/composers/:id/follow", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId required" });
+      await storage.unfollowComposer(userId, id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to unfollow composer" });
+    }
+  });
+
   app.get("/api/search/unified", async (req, res) => {
     try {
       const query = (req.query.q as string) || "";

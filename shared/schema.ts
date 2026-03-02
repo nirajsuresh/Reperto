@@ -20,6 +20,11 @@ export type User = typeof users.$inferSelect;
 export const composers = pgTable("composers", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
+  bio: text("bio"),
+  birthYear: integer("birth_year"),
+  deathYear: integer("death_year"),
+  nationality: text("nationality"),
+  imageUrl: text("image_url"),
 });
 
 export const insertComposerSchema = createInsertSchema(composers).omit({ id: true });
@@ -31,7 +36,22 @@ export const pieces = pgTable("pieces", {
   title: text("title").notNull(),
   composerId: integer("composer_id").notNull().references(() => composers.id),
   instrument: text("instrument").default("Solo Piano"),
+  imslpUrl: text("imslp_url"),
+  keySignature: text("key_signature"),
+  yearComposed: integer("year_composed"),
+  difficulty: text("difficulty"),
 });
+
+export const composerFollows = pgTable("composer_follows", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  composerId: integer("composer_id").notNull().references(() => composers.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [unique("composer_follows_unique").on(table.userId, table.composerId)]);
+
+export const insertComposerFollowSchema = createInsertSchema(composerFollows).omit({ id: true, createdAt: true });
+export type InsertComposerFollow = z.infer<typeof insertComposerFollowSchema>;
+export type ComposerFollow = typeof composerFollows.$inferSelect;
 
 export const insertPieceSchema = createInsertSchema(pieces).omit({ id: true });
 export type InsertPiece = z.infer<typeof insertPieceSchema>;

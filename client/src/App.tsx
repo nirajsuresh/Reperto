@@ -13,6 +13,7 @@ import SearchPage from "@/pages/search-page";
 import UserProfilePage from "@/pages/user-profile";
 import FeedPage from "@/pages/feed-page";
 import ConnectionsPage from "@/pages/connections-page";
+import ComposerPage from "@/pages/composer-page";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/feed" component={FeedPage} />
       <Route path="/connections" component={ConnectionsPage} />
       <Route path="/piece/:id" component={PieceDetailPage} />
+      <Route path="/composer/:id" component={ComposerPage} />
       <Route path="/search" component={SearchPage} />
       <Route path="/user/:id" component={UserProfilePage} />
       <Route component={NotFound} />

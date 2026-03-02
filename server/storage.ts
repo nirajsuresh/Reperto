@@ -13,8 +13,9 @@ import {
   type PieceComment, type InsertPieceComment,
   type PieceAnalysis, type InsertPieceAnalysis,
   type Connection, type InsertConnection,
+  type ComposerFollow,
   users, composers, pieces, movements, repertoireEntries, posts, postLikes, postComments, challenges, userProfiles, follows,
-  pieceRatings, pieceComments, pieceAnalyses, connections
+  pieceRatings, pieceComments, pieceAnalyses, connections, composerFollows
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ilike, and, desc, inArray, sql, count, avg, or, ne } from "drizzle-orm";
@@ -93,6 +94,18 @@ export interface IStorage {
   getPendingRequestsSent(userId: string): Promise<any[]>;
   updateConnectionStatus(connectionId: number, status: "accepted" | "denied"): Promise<Connection>;
   getAcceptedConnections(userId: string): Promise<any[]>;
+
+  // Composer follows
+  followComposer(userId: string, composerId: number): Promise<ComposerFollow>;
+  unfollowComposer(userId: string, composerId: number): Promise<boolean>;
+  isFollowingComposer(userId: string, composerId: number): Promise<boolean>;
+  getComposerFollowerCount(composerId: number): Promise<number>;
+  getComposerCommunityStats(composerId: number): Promise<{
+    followerCount: number;
+    activeLearners: number;
+    mostPopularPiece: { id: number; title: string; learnerCount: number } | null;
+  }>;
+  getComposerPiecesWithCounts(composerId: number): Promise<(Piece & { learnerCount: number })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -712,6 +725,99 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(connections.recipientId, userId), eq(connections.status, "accepted")));
 
     return [...sent, ...received];
+  }
+
+  // Composer follows
+  async followComposer(userId: string, composerId: number): Promise<ComposerFollow> {
+    const [follow] = await db
+      .insert(composerFollows)
+      .values({ userId, composerId })
+      .onConflictDoNothing()
+      .returning();
+    return follow;
+  }
+
+  async unfollowComposer(userId: string, composerId: number): Promise<boolean> {
+    const result = await db
+      .delete(composerFollows)
+      .where(and(eq(composerFollows.userId, userId), eq(composerFollows.composerId, composerId)));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async isFollowingComposer(userId: string, composerId: number): Promise<boolean> {
+    const [row] = await db
+      .select()
+      .from(composerFollows)
+      .where(and(eq(composerFollows.userId, userId), eq(composerFollows.composerId, composerId)));
+    return !!row;
+  }
+
+  async getComposerFollowerCount(composerId: number): Promise<number> {
+    const [row] = await db
+      .select({ count: count() })
+      .from(composerFollows)
+      .where(eq(composerFollows.composerId, composerId));
+    return row?.count ?? 0;
+  }
+
+  async getComposerCommunityStats(composerId: number): Promise<{
+    followerCount: number;
+    activeLearners: number;
+    mostPopularPiece: { id: number; title: string; learnerCount: number } | null;
+  }> {
+    const [followerRow] = await db
+      .select({ count: count() })
+      .from(composerFollows)
+      .where(eq(composerFollows.composerId, composerId));
+
+    const [learnersRow] = await db
+      .select({ count: sql<number>`count(distinct ${repertoireEntries.userId})` })
+      .from(repertoireEntries)
+      .innerJoin(pieces, eq(repertoireEntries.pieceId, pieces.id))
+      .where(eq(pieces.composerId, composerId));
+
+    const pieceRows = await db
+      .select({
+        id: pieces.id,
+        title: pieces.title,
+        learnerCount: sql<number>`count(${repertoireEntries.id})`,
+      })
+      .from(pieces)
+      .leftJoin(repertoireEntries, eq(pieces.id, repertoireEntries.pieceId))
+      .where(eq(pieces.composerId, composerId))
+      .groupBy(pieces.id, pieces.title)
+      .orderBy(desc(sql`count(${repertoireEntries.id})`))
+      .limit(1);
+
+    const topPiece = pieceRows[0] ?? null;
+
+    return {
+      followerCount: followerRow?.count ?? 0,
+      activeLearners: Number(learnersRow?.count ?? 0),
+      mostPopularPiece: topPiece ? { id: topPiece.id, title: topPiece.title, learnerCount: Number(topPiece.learnerCount) } : null,
+    };
+  }
+
+  async getComposerPiecesWithCounts(composerId: number): Promise<(Piece & { learnerCount: number })[]> {
+    const rows = await db
+      .select({
+        id: pieces.id,
+        title: pieces.title,
+        composerId: pieces.composerId,
+        instrument: pieces.instrument,
+        imslpUrl: pieces.imslpUrl,
+        keySignature: pieces.keySignature,
+        yearComposed: pieces.yearComposed,
+        difficulty: pieces.difficulty,
+        learnerCount: sql<number>`count(${repertoireEntries.id})`,
+      })
+      .from(pieces)
+      .leftJoin(repertoireEntries, eq(pieces.id, repertoireEntries.pieceId))
+      .where(eq(pieces.composerId, composerId))
+      .groupBy(pieces.id)
+      .orderBy(pieces.title);
+
+    return rows.map(r => ({ ...r, learnerCount: Number(r.learnerCount) }));
   }
 }
 
