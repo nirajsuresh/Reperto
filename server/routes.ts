@@ -86,6 +86,26 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/composers/:id/members", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const members = await storage.getComposerMembers(id);
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get members" });
+    }
+  });
+
+  app.get("/api/composers/:id/activity", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const activity = await storage.getComposerActivity(id);
+      res.json(activity);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get activity" });
+    }
+  });
+
   app.get("/api/search/unified", async (req, res) => {
     try {
       const query = (req.query.q as string) || "";

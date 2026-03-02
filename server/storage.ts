@@ -106,6 +106,10 @@ export interface IStorage {
     mostPopularPiece: { id: number; title: string; learnerCount: number } | null;
   }>;
   getComposerPiecesWithCounts(composerId: number): Promise<(Piece & { learnerCount: number })[]>;
+  getComposerMembers(composerId: number, limit?: number): Promise<{
+    userId: string; displayName: string | null; avatarUrl: string | null; instrument: string | null;
+  }[]>;
+  getComposerActivity(composerId: number, limit?: number): Promise<any[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -796,6 +800,44 @@ export class DatabaseStorage implements IStorage {
       activeLearners: Number(learnersRow?.count ?? 0),
       mostPopularPiece: topPiece ? { id: topPiece.id, title: topPiece.title, learnerCount: Number(topPiece.learnerCount) } : null,
     };
+  }
+
+  async getComposerMembers(composerId: number, limit = 12): Promise<{ userId: string; displayName: string | null; avatarUrl: string | null; instrument: string | null; }[]> {
+    const rows = await db
+      .selectDistinct({
+        userId: userProfiles.userId,
+        displayName: userProfiles.displayName,
+        avatarUrl: userProfiles.avatarUrl,
+        instrument: userProfiles.instrument,
+      })
+      .from(repertoireEntries)
+      .innerJoin(pieces, eq(repertoireEntries.pieceId, pieces.id))
+      .innerJoin(userProfiles, eq(repertoireEntries.userId, userProfiles.userId))
+      .where(eq(pieces.composerId, composerId))
+      .limit(limit);
+    return rows;
+  }
+
+  async getComposerActivity(composerId: number, limit = 10): Promise<any[]> {
+    const rows = await db
+      .select({
+        id: posts.id,
+        userId: posts.userId,
+        content: posts.content,
+        postType: posts.postType,
+        pieceId: posts.pieceId,
+        pieceTitle: pieces.title,
+        createdAt: posts.createdAt,
+        displayName: userProfiles.displayName,
+        avatarUrl: userProfiles.avatarUrl,
+      })
+      .from(posts)
+      .innerJoin(pieces, eq(posts.pieceId, pieces.id))
+      .leftJoin(userProfiles, eq(posts.userId, userProfiles.userId))
+      .where(and(eq(pieces.composerId, composerId), ne(posts.postType, "recording")))
+      .orderBy(desc(posts.createdAt))
+      .limit(limit);
+    return rows;
   }
 
   async getComposerPiecesWithCounts(composerId: number): Promise<(Piece & { learnerCount: number })[]> {
