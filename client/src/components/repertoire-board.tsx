@@ -24,6 +24,7 @@ import {
   getStatusDotColor,
   STATUSES,
 } from "@/lib/status-colors";
+import { SURFACE } from "@/lib/palette";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -74,9 +75,9 @@ type SharePromptState = {
   movementName?: string;
 } | null;
 
-const MAIN_COLUMNS = ["Want to learn", "Up next", "Learning"] as const;
-const STACKED_A = ["Refining", "Maintaining"] as const;
-const STACKED_B = ["Performance Ready", "Shelved"] as const;
+const MAIN_COLUMNS = ["Want to learn", "Up next", "In Progress"] as const;
+const STACKED_A = ["Maintaining"] as const;
+const STACKED_B = ["Resting"] as const;
 
 const ALL_COLUMN_IDS = new Set<string>([...MAIN_COLUMNS, ...STACKED_A, ...STACKED_B]);
 
@@ -114,11 +115,9 @@ function PipelineHeader({ items }: { items: BoardItem[] }) {
   const stages = [
     "Want to learn",
     "Up next",
-    "Learning",
-    "Refining",
+    "In Progress",
     "Maintaining",
-    "Performance Ready",
-    "Shelved",
+    "Resting",
   ];
 
   return (
@@ -259,13 +258,13 @@ function DraggableCard({
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       {...listeners}
       className={cn(
-        "group bg-[#faf9f5] rounded-md p-3 shadow-sm border border-border/30 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow",
+        "group rounded-md p-3 shadow-sm border border-border/30 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow",
         isDragging && "shadow-lg ring-2 ring-primary/30"
       )}
+      style={{ ...style, backgroundColor: SURFACE.card }}
       data-testid={`board-card-${item.id}`}
     >
       <div className="flex items-start justify-between gap-1">
@@ -273,7 +272,7 @@ function DraggableCard({
           <p className="text-xs font-semibold text-primary tracking-wide uppercase leading-tight">
             {item.composer}
           </p>
-          <p className="font-serif italic text-sm mt-0.5 leading-snug">
+          <p className="text-sm mt-0.5 leading-snug">
             {item.piece}
           </p>
         </Link>
@@ -362,11 +361,11 @@ function DraggableCard({
 
 function OverlayCard({ item }: { item: BoardItem }) {
   return (
-    <div className="bg-[#faf9f5] rounded-md p-3 shadow-lg border border-primary/30 w-[200px] rotate-2">
+    <div className="rounded-md p-3 shadow-lg border border-primary/30 w-[200px] rotate-2" style={{ backgroundColor: SURFACE.card }}>
       <p className="text-xs font-semibold text-primary tracking-wide uppercase leading-tight">
         {item.composer}
       </p>
-      <p className="font-serif italic text-sm mt-0.5 leading-snug">
+      <p className="text-sm mt-0.5 leading-snug">
         {item.piece}
       </p>
     </div>
@@ -404,7 +403,7 @@ function ColumnWithCards({
         ))}
       </SortableContext>
       {colItems.length === 0 && (
-        <div className="flex items-center justify-center h-12 text-xs text-muted-foreground/50 italic">
+        <div className="flex items-center justify-center h-12 text-xs text-muted-foreground/50">
           Drop here
         </div>
       )}

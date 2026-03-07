@@ -10,7 +10,7 @@ export function ProgressRing({
   progress,
   size = 32,
   strokeWidth = 2.5,
-  color = "#d4967c",
+  color = "hsl(var(--accent))",
   className,
 }: ProgressRingProps) {
   const radius = (size - strokeWidth) / 2;

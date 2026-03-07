@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableCombobox, MultiSelectCombobox } from "@/components/searchable-combobox";
 import { Plus, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 
 interface Composer {
   id: number;
@@ -71,29 +72,34 @@ export function AddPieceDialog({ onAdd }: AddPieceDialogProps) {
   const [selectedComposerId, setSelectedComposerId] = useState("");
   const [selectedPieceId, setSelectedPieceId] = useState("");
   const [selectedMovementIds, setSelectedMovementIds] = useState<string[]>([]);
-  const [status, setStatus] = useState("Learning");
+  const [status, setStatus] = useState("In Progress");
   const [startedDate, setStartedDate] = useState("");
 
   const autoFillRef = useRef(0);
   const [lastUnifiedResult, setLastUnifiedResult] = useState<UnifiedResult | null>(null);
 
+  const debouncedUnifiedQuery = useDebouncedValue(unifiedQuery, 280);
+  const debouncedComposerQuery = useDebouncedValue(composerQuery, 280);
+
   const { data: unifiedResults = [], isLoading: unifiedLoading } = useQuery<UnifiedResult[]>({
-    queryKey: ["/api/search/unified", unifiedQuery],
+    queryKey: ["/api/search/unified", debouncedUnifiedQuery],
     queryFn: async () => {
-      const res = await fetch(`/api/search/unified?q=${encodeURIComponent(unifiedQuery)}`);
+      const res = await fetch(`/api/search/unified?q=${encodeURIComponent(debouncedUnifiedQuery)}`);
       if (!res.ok) throw new Error("Failed to search");
       return res.json();
     },
-    enabled: unifiedQuery.length > 1,
+    enabled: debouncedUnifiedQuery.length > 1,
+    staleTime: 60_000,
   });
 
   const { data: composers = [], isLoading: composersLoading } = useQuery<Composer[]>({
-    queryKey: ["/api/composers/search", composerQuery],
+    queryKey: ["/api/composers/search", debouncedComposerQuery],
     queryFn: async () => {
-      const res = await fetch(`/api/composers/search?q=${encodeURIComponent(composerQuery)}`);
+      const res = await fetch(`/api/composers/search?q=${encodeURIComponent(debouncedComposerQuery)}`);
       if (!res.ok) throw new Error("Failed to fetch composers");
       return res.json();
     },
+    enabled: true,
   });
 
   const { data: pieces = [], isLoading: piecesLoading } = useQuery<Piece[]>({
@@ -249,7 +255,7 @@ export function AddPieceDialog({ onAdd }: AddPieceDialogProps) {
               onSearch={setUnifiedQuery}
               placeholder="Describe your piece (e.g. Moonlight Sonata)..."
               searchPlaceholder="Type a piece, movement, or composer..."
-              emptyMessage={unifiedQuery.length > 1 ? "No matches found." : "Start typing to search..."}
+              emptyMessage={debouncedUnifiedQuery.length > 1 ? "No matches found." : "Start typing to search..."}
               isLoading={unifiedLoading}
               portalContainer={dialogContainer}
               preserveOrder
@@ -318,11 +324,9 @@ export function AddPieceDialog({ onAdd }: AddPieceDialogProps) {
               <SelectContent>
                 <SelectItem value="Want to learn">Want to learn</SelectItem>
                 <SelectItem value="Up next">Up next</SelectItem>
-                <SelectItem value="Learning">Learning</SelectItem>
-                <SelectItem value="Refining">Refining</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
                 <SelectItem value="Maintaining">Maintaining</SelectItem>
-                <SelectItem value="Performance Ready">Performance Ready</SelectItem>
-                <SelectItem value="Shelved">Shelved</SelectItem>
+                <SelectItem value="Resting">Resting</SelectItem>
               </SelectContent>
             </Select>
           </div>

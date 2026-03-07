@@ -1,18 +1,22 @@
 import { Layout } from "@/components/layout";
+import { PianoAvatar } from "@/components/piano-avatars";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  ArrowLeft, Users, Music2, ExternalLink, Youtube, Hash,
+  ArrowLeft, Users, Music2, ExternalLink, Youtube,
   TrendingUp, Clock, ChevronRight, UserCircle2, Search,
-  Play, PlusCircle, Video, ArrowUpRight, Star, Zap, BookOpen,
+  Play, PlusCircle, Video, ArrowUpRight, Star, Zap, BookOpen, Award,
+  MessageSquare, Send,
 } from "lucide-react";
+import { BADGE_TILE_BG_COLOR, COMPOSER_VIBES, ERA_TILE_COLOR, TIER_LABEL } from "@/lib/badges";
 import { useState, useMemo } from "react";
 import { Link, useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { cn } from "@/lib/utils";
+import { cn, toComposerImageUrl } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+import { ACTIVITY, ERA_BADGE, DIFFICULTY_BADGE, VIDEO_TYPE_BADGE, STATUS_DOT } from "@/lib/palette";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -84,26 +88,26 @@ const MOCK_ACTIVITY: {
   type: ActivityType; displayName: string; pieceHint: string;
   statusTo?: string; hoursLogged?: number; timeAgo: string;
 }[] = [
-  { type: "status",    displayName: "Sarah K.",    pieceHint: "Nocturne Op. 9 No. 2",   statusTo: "Performance Ready", timeAgo: "2h ago" },
+  { type: "status",    displayName: "Sarah K.",    pieceHint: "Nocturne Op. 9 No. 2",   statusTo: "Maintaining", timeAgo: "2h ago" },
   { type: "added",     displayName: "Marcus T.",   pieceHint: "Ballade No. 1",                                          timeAgo: "5h ago" },
   { type: "recording", displayName: "Yuki N.",     pieceHint: "Étude Op. 10 No. 4",                                     timeAgo: "7h ago" },
   { type: "milestone", displayName: "Alex M.",     pieceHint: "Sonata Op. 35",          hoursLogged: 50,                timeAgo: "1d ago" },
-  { type: "status",    displayName: "Priya R.",    pieceHint: "Waltz Op. 64 No. 2",     statusTo: "Refining",           timeAgo: "2d ago" },
+  { type: "status",    displayName: "Priya R.",    pieceHint: "Waltz Op. 64 No. 2",     statusTo: "In Progress",           timeAgo: "2d ago" },
   { type: "added",     displayName: "Thomas H.",   pieceHint: "Scherzo No. 2",                                          timeAgo: "3d ago" },
   { type: "recording", displayName: "Emma L.",     pieceHint: "Prélude Op. 28 No. 15",                                  timeAgo: "3d ago" },
   { type: "status",    displayName: "David W.",    pieceHint: "Nocturne Op. 27 No. 2",  statusTo: "Maintaining",        timeAgo: "4d ago" },
 ];
 
 const ACTIVITY_CONFIG: Record<ActivityType, { label: string; icon: typeof Play; border: string; iconBg: string; iconColor: string }> = {
-  status:    { label: "Status update",  icon: Star,       border: "border-l-rose-400",   iconBg: "bg-rose-100",   iconColor: "text-rose-600" },
-  added:     { label: "New to list",    icon: PlusCircle, border: "border-l-blue-400",   iconBg: "bg-blue-100",   iconColor: "text-blue-600" },
-  milestone: { label: "Milestone",      icon: Zap,        border: "border-l-amber-400",  iconBg: "bg-amber-100",  iconColor: "text-amber-600" },
-  recording: { label: "Recording",      icon: Video,      border: "border-l-purple-400", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  status:    { label: "Status update",  icon: Star,       ...ACTIVITY.status },
+  added:     { label: "New to list",    icon: PlusCircle, ...ACTIVITY.added },
+  milestone: { label: "Milestone",      icon: Zap,        ...ACTIVITY.milestone },
+  recording: { label: "Recording",      icon: Video,      ...ACTIVITY.recording },
 };
 
 function activityText(item: typeof MOCK_ACTIVITY[0]) {
   switch (item.type) {
-    case "status":    return <>moved <span className="font-medium">{item.pieceHint}</span> to <span className="font-medium text-rose-600">{item.statusTo}</span></>;
+    case "status":    return <>moved <span className="font-medium">{item.pieceHint}</span> to <span className={cn("font-medium", ACTIVITY.status.iconColor)}>{item.statusTo}</span></>;
     case "added":     return <>added <span className="font-medium">{item.pieceHint}</span> to their repertoire</>;
     case "milestone": return <>logged <span className="font-medium">{item.hoursLogged} hours</span> on <span className="font-medium">{item.pieceHint}</span></>;
     case "recording": return <>shared a recording of <span className="font-medium">{item.pieceHint}</span></>;
@@ -124,23 +128,18 @@ function getEra(b?: number | null) {
   return "Contemporary";
 }
 
-const ERA_COLOR: Record<string, string> = {
-  Renaissance: "bg-amber-100 text-amber-800",
-  Baroque:     "bg-yellow-100 text-yellow-800",
-  Classical:   "bg-sky-100 text-sky-800",
-  Romantic:    "bg-rose-100 text-rose-800",
-  Modern:      "bg-violet-100 text-violet-800",
-  Contemporary:"bg-emerald-100 text-emerald-800",
-};
 
 function DifficultyDot({ difficulty }: { difficulty?: string | null }) {
   if (!difficulty) return null;
-  const dot: Record<string, string> = {
-    Beginner: "bg-green-400", Intermediate: "bg-blue-400", Advanced: "bg-orange-400", Expert: "bg-red-500",
+  const colors: Record<string, string> = {
+    Beginner: STATUS_DOT["Want to learn"],
+    Intermediate: STATUS_DOT["In Progress"],
+    Advanced: STATUS_DOT["In Progress"],
+    Expert: STATUS_DOT["Maintaining"],
   };
   return (
     <span className="flex items-center gap-1 shrink-0">
-      <span className={cn("w-1.5 h-1.5 rounded-full", dot[difficulty] ?? "bg-muted")} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: colors[difficulty] ?? STATUS_DOT["Resting"] }} />
       <span className="text-xs text-muted-foreground">{difficulty}</span>
     </span>
   );
@@ -169,17 +168,13 @@ function PopularityBar({ count, max }: { count: number; max: number }) {
 
 function VideoThumbnail({ videoId, title, artist, type, onClick }: VideoEntry & { onClick: () => void }) {
   const thumbUrl = `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
-  const typeColor: Record<string, string> = {
-    Performance: "bg-rose-100 text-rose-700",
-    Analysis: "bg-blue-100 text-blue-700",
-    Masterclass: "bg-amber-100 text-amber-700",
-  };
+  const typeColor = VIDEO_TYPE_BADGE;
   return (
     <button
       onClick={onClick}
       className="group w-full text-left focus:outline-none"
     >
-      <div className="relative rounded-lg overflow-hidden mb-2 aspect-video bg-stone-800">
+      <div className="relative rounded-lg overflow-hidden mb-2 aspect-video bg-primary">
         <img
           src={thumbUrl}
           alt={title}
@@ -188,7 +183,7 @@ function VideoThumbnail({ videoId, title, artist, type, onClick }: VideoEntry & 
         />
         <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
           <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-            <Play className="w-4 h-4 text-stone-900 ml-0.5" fill="currentColor" />
+            <Play className="w-4 h-4 text-primary ml-0.5" fill="currentColor" />
           </div>
         </div>
         <span className={cn("absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full", typeColor[type])}>
@@ -233,6 +228,7 @@ export default function ComposerPage() {
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"studied" | "az">("studied");
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
+  const [discussionInput, setDiscussionInput] = useState("");
 
   // ── queries ──
   const { data: composer, isLoading } = useQuery({
@@ -264,6 +260,25 @@ export default function ComposerPage() {
     queryKey: ["/api/composers", composerId, "follow-status", userId],
     queryFn: async () => { if (!userId) return { following: false }; const r = await fetch(`/api/composers/${composerId}/follow-status?userId=${userId}`); return r.ok ? r.json() : { following: false }; },
     enabled: !!composerId && !!userId,
+  });
+
+  // Discussion
+  const { data: composerDiscussion = [], refetch: refetchDiscussion } = useQuery<any[]>({
+    queryKey: ["/api/composers", composerId, "comments"],
+    queryFn: async () => { const r = await fetch(`/api/composers/${composerId}/comments`); if (!r.ok) return []; return r.json(); },
+    enabled: !!composerId,
+  });
+  const addCommentMutation = useMutation({
+    mutationFn: async (content: string) => {
+      const r = await fetch(`/api/composers/${composerId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, content }),
+      });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    onSuccess: () => { setDiscussionInput(""); refetchDiscussion(); },
   });
 
   const followMutation = useMutation({
@@ -310,10 +325,13 @@ export default function ComposerPage() {
   if (!composer) return <Layout><div className="min-h-screen flex items-center justify-center text-muted-foreground">Composer not found.</div></Layout>;
 
   const era = getEra(composer.birthYear);
+  const periodOrEra = (composer as { period?: string | null }).period ?? era;
   const isFollowing = followStatus?.following ?? false;
-  const lifeDates = composer.birthYear && composer.deathYear
+  const lifeDates = composer.birthYear != null && composer.deathYear != null
     ? `${composer.birthYear}–${composer.deathYear}`
-    : composer.birthYear ? `b. ${composer.birthYear}` : null;
+    : composer.birthYear != null ? `b. ${composer.birthYear}` : null;
+  const bioLine = [composer.nationality, lifeDates].filter(Boolean).join(" · ");
+  const resolvedImageUrl = toComposerImageUrl(composer.imageUrl) || composer.imageUrl || null;
 
   return (
     <Layout>
@@ -323,10 +341,10 @@ export default function ComposerPage() {
         {activeVideoId && <VideoPlayerModal videoId={activeVideoId} onClose={() => setActiveVideoId(null)} />}
 
         {/* ── HERO ──────────────────────────────────────────────────── */}
-        <div className="bg-stone-900 text-stone-100">
-          <div className="container mx-auto px-4 max-w-5xl pt-6 pb-10">
+        <div className="bg-black text-primary-foreground">
+          <div className="container mx-auto px-4 xl:px-8 max-w-[1620px] pt-6 pb-10">
             <Link href="/search">
-              <Button variant="ghost" size="sm" className="mb-6 text-stone-400 hover:text-white hover:bg-stone-800 -ml-2 group">
+              <Button variant="ghost" size="sm" className="mb-6 text-primary-foreground/65 hover:text-primary-foreground hover:bg-primary-foreground/10 -ml-2 group">
                 <ArrowLeft className="w-4 h-4 mr-1.5 transition-transform group-hover:-translate-x-1" /> Back
               </Button>
             </Link>
@@ -334,12 +352,13 @@ export default function ComposerPage() {
             <div className="flex flex-col sm:flex-row items-start gap-8">
               {/* Portrait */}
               <div className="shrink-0">
-                {composer.imageUrl ? (
-                  <img src={composer.imageUrl} alt={composer.name}
-                    className="w-28 h-28 sm:w-40 sm:h-40 rounded-2xl object-cover shadow-2xl border border-stone-700" />
+                {resolvedImageUrl ? (
+                  <img src={resolvedImageUrl} alt={composer.name}
+                    className="w-24 h-32 sm:w-32 sm:h-44 rounded-2xl object-cover object-top shadow-2xl border border-primary-foreground/20"
+                    referrerPolicy="no-referrer" />
                 ) : (
-                  <div className="w-28 h-28 sm:w-40 sm:h-40 rounded-2xl bg-gradient-to-br from-stone-700 to-stone-800 flex items-center justify-center shadow-2xl border border-stone-600">
-                    <span className="font-serif text-5xl font-bold text-stone-400 select-none">
+                  <div className="w-24 h-32 sm:w-32 sm:h-44 rounded-2xl bg-white/10 flex items-center justify-center shadow-2xl border border-primary-foreground/25">
+                    <span className="font-serif text-5xl font-bold text-primary-foreground/60 select-none">
                       {composer.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
                     </span>
                   </div>
@@ -348,19 +367,18 @@ export default function ComposerPage() {
 
               {/* Info */}
               <div className="flex-1 min-w-0 pt-1">
-                <div className="flex flex-wrap items-center gap-2 mb-3">
-                  {era && <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full", ERA_COLOR[era])}>{era}</span>}
-                  {composer.nationality && <span className="text-xs text-stone-400 font-medium">{composer.nationality}</span>}
-                  {lifeDates && <span className="text-xs text-stone-500">{lifeDates}</span>}
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  {periodOrEra && <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full", ERA_BADGE[periodOrEra] ?? "bg-muted text-muted-foreground")}>{periodOrEra}</span>}
                 </div>
+                {bioLine && <p className="text-xs text-primary-foreground/65 mb-3">{bioLine}</p>}
 
                 <h1 className="font-serif text-4xl sm:text-5xl font-bold text-white leading-tight mb-3">
                   {composer.name}
                 </h1>
 
                 {composer.bio
-                  ? <p className="text-stone-300 text-sm leading-relaxed max-w-xl mb-5">{composer.bio}</p>
-                  : <p className="text-stone-600 text-sm italic mb-5">No biography added yet.</p>}
+                  ? <p className="text-primary-foreground/80 text-sm leading-relaxed max-w-xl mb-5">{composer.bio}</p>
+                  : <p className="text-primary-foreground/45 text-sm mb-5">No biography added yet.</p>}
 
                 {/* Stat row + follow */}
                 <div className="flex flex-wrap items-center gap-4">
@@ -369,8 +387,8 @@ export default function ComposerPage() {
                       size="sm"
                       variant={isFollowing ? "outline" : "default"}
                       className={isFollowing
-                        ? "border-stone-500 text-stone-200 hover:bg-stone-800"
-                        : "bg-white text-stone-900 hover:bg-stone-100"}
+                        ? "border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10"
+                        : "bg-primary-foreground text-primary hover:bg-primary-foreground/90"}
                       onClick={() => followMutation.mutate()}
                       disabled={followMutation.isPending || followLoading}
                     >
@@ -383,8 +401,8 @@ export default function ComposerPage() {
                       { val: community?.activeLearners ?? 0, label: "studying" },
                       { val: allPieces.length, label: "pieces" },
                     ].map(({ val, label }) => (
-                      <span key={label} className="text-stone-400">
-                        <span className="font-semibold text-stone-200 mr-1">{val}</span>{label}
+                      <span key={label} className="text-primary-foreground/70">
+                        <span className="font-semibold text-primary-foreground mr-1">{val}</span>{label}
                       </span>
                     ))}
                   </div>
@@ -396,7 +414,7 @@ export default function ComposerPage() {
 
         {/* ── ACTIVITY STRIP (horizontal scroll) ──────────────────── */}
         <div className="border-b border-border bg-card">
-          <div className="container mx-auto px-4 max-w-5xl py-4">
+          <div className="container mx-auto px-4 xl:px-8 max-w-[1620px] py-4">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
@@ -444,7 +462,7 @@ export default function ComposerPage() {
         </div>
 
         {/* ── BODY ─────────────────────────────────────────────────── */}
-        <div className="container mx-auto px-4 max-w-5xl py-8">
+        <div className="container mx-auto px-4 xl:px-8 max-w-[1620px] py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
             {/* ── MAIN (2/3) ──────────────────────────────────── */}
@@ -461,7 +479,7 @@ export default function ComposerPage() {
                     <Card className="border-primary/25 bg-gradient-to-r from-primary/5 to-transparent hover:from-primary/10 hover:shadow-md transition-all cursor-pointer group">
                       <CardContent className="p-5 flex items-center justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <p className="font-serif text-xl font-semibold group-hover:text-primary transition-colors mb-1.5">{featuredPiece.title}</p>
+                          <p className="text-xl font-semibold group-hover:text-primary transition-colors mb-1.5">{featuredPiece.title}</p>
                           <div className="flex flex-wrap items-center gap-3">
                             {featuredPiece.keySignature && <span className="text-xs text-muted-foreground">{featuredPiece.keySignature}</span>}
                             {featuredPiece.yearComposed && <span className="text-xs text-muted-foreground">{featuredPiece.yearComposed}</span>}
@@ -568,6 +586,69 @@ export default function ComposerPage() {
                   </div>
                 )}
               </div>
+
+              {/* ── DISCUSSION ──────────────────────────── */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Discussion</span>
+                </div>
+
+                {/* Comment input */}
+                {userId && (
+                  <div className="flex gap-2 mb-5">
+                    <input
+                      value={discussionInput}
+                      onChange={e => setDiscussionInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey && discussionInput.trim()) { e.preventDefault(); addCommentMutation.mutate(discussionInput.trim()); } }}
+                      placeholder={`Share a thought about ${composer?.name?.split(" ").pop() ?? "this composer"}…`}
+                      className="flex-1 text-sm bg-muted/40 border border-border rounded-xl px-4 py-2.5 outline-none focus:border-primary/50 focus:bg-card placeholder:text-muted-foreground/50 transition-colors"
+                    />
+                    <button
+                      onClick={() => { if (discussionInput.trim()) addCommentMutation.mutate(discussionInput.trim()); }}
+                      disabled={!discussionInput.trim() || addCommentMutation.isPending}
+                      className="px-3 py-2.5 rounded-xl bg-primary/10 hover:bg-primary/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-primary"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Thread list */}
+                <Card className="border-none shadow-sm">
+                  <CardContent className="p-0">
+                    {composerDiscussion.length === 0 ? (
+                      <div className="px-5 py-8 text-center">
+                        <MessageSquare className="w-7 h-7 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-sm text-muted-foreground">No discussion yet.</p>
+                        {userId && <p className="text-xs text-muted-foreground/60 mt-1">Be the first to share a thought above.</p>}
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border">
+                        {composerDiscussion.map((d: any, i: number) => (
+                          <div key={d.id ?? i} className="flex gap-4 px-5 py-4 hover:bg-muted/20 transition-colors">
+                            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-muted mt-0.5">
+                              <PianoAvatar avatarId={d.avatarUrl || "avatar-1"} size={32} className="w-full h-full" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-baseline gap-3 mb-1">
+                                <span className="text-sm font-semibold text-foreground">{d.displayName ?? "Member"}</span>
+                                {d.createdAt && (
+                                  <span className="text-[11px] text-muted-foreground/60">
+                                    {formatDistanceToNow(new Date(d.createdAt), { addSuffix: true })}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground leading-relaxed">{d.content}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
             </div>
 
             {/* ── SIDEBAR (1/3) — sticky ───────────────────── */}
@@ -663,7 +744,7 @@ export default function ComposerPage() {
                 ) : (
                   <Card className="border-none shadow-sm">
                     <CardContent className="p-4">
-                      <p className="text-sm text-muted-foreground italic mb-3">Curated recordings coming for this composer.</p>
+                      <p className="text-sm text-muted-foreground mb-3">Curated recordings coming for this composer.</p>
                       <a
                         href={`https://www.youtube.com/results?search_query=${encodeURIComponent(composer.name + " piano")}`}
                         target="_blank"
@@ -677,36 +758,59 @@ export default function ComposerPage() {
                 )}
               </div>
 
-              {/* Reddit */}
+              {/* Badge ladder */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <Hash className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Discussions</span>
+                  <Award className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Badges to earn</span>
                 </div>
                 <Card className="border-none shadow-sm">
-                  <CardContent className="p-4 space-y-4">
+                  <CardContent className="p-4 space-y-3">
                     {[
-                      { sub: "r/piano",        title: `Best recordings of ${composer.name.split(" ").slice(-1)[0]}?`,    votes: 847, comments: 134 },
-                      { sub: "r/classicalmusic", title: `${composer.name.split(" ").slice(-1)[0]}'s influence on the Romantic era`, votes: 512, comments: 89 },
-                      { sub: "r/piano",        title: `Tips for performing ${composer.name.split(" ").slice(-1)[0]} convincingly`, votes: 291, comments: 47 },
-                    ].map((post, i) => (
-                      <a
-                        key={i}
-                        href={`https://www.reddit.com/search/?q=${encodeURIComponent(composer.name)}+piano`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block group"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">{post.sub}</span>
-                            <p className="text-xs font-medium mt-1 leading-snug group-hover:text-primary transition-colors line-clamp-2">{post.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-1">↑ {post.votes} · {post.comments} comments</p>
+                      { min: 1, label: "Explorer",  icon: "🔭", tier: "silver" as const,   desc: "Add 1 piece" },
+                      { min: 3, label: "Devotee",   icon: "🎓", tier: "gold" as const,      desc: "Add 3 pieces" },
+                      { min: 5, label: "Scholar",   icon: "🏛️", tier: "platinum" as const, desc: "Add 5 pieces" },
+                    ].map(({ min, label, icon, tier, desc }) => {
+                      const lastName = composer.name.split(" ").slice(-1)[0];
+                      const bg = (periodOrEra ? ERA_TILE_COLOR[periodOrEra] : undefined) ?? BADGE_TILE_BG_COLOR[tier];
+                      return (
+                        <div key={label} className="flex items-center gap-3">
+                          <div
+                            style={{ backgroundColor: bg }}
+                            className="w-10 h-10 rounded-xl shrink-0 flex flex-col items-center justify-center shadow-sm overflow-hidden"
+                          >
+                            <span className="text-lg leading-none">{icon}</span>
                           </div>
-                          <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1 group-hover:text-primary transition-colors" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold leading-tight">{lastName} {label}</p>
+                            <p className="text-[10px] text-muted-foreground">{desc} · <span className="uppercase tracking-wide font-semibold">{TIER_LABEL[tier]}</span></p>
+                          </div>
                         </div>
-                      </a>
-                    ))}
+                      );
+                    })}
+                    {(() => {
+                      const lastName = composer.name.split(" ").slice(-1)[0];
+                      const vibe = COMPOSER_VIBES[lastName];
+                      if (!vibe) return null;
+                      const bg = (periodOrEra ? ERA_TILE_COLOR[periodOrEra] : undefined) ?? BADGE_TILE_BG_COLOR["gold"];
+                      return (
+                        <div className="pt-3 border-t border-border">
+                          <p className="text-[10px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider">Vibe badge at Devotee</p>
+                          <div className="flex items-center gap-3">
+                            <div
+                              style={{ backgroundColor: bg }}
+                              className="w-10 h-10 rounded-xl shrink-0 flex items-center justify-center shadow-sm"
+                            >
+                              <span className="text-lg leading-none">{vibe.icon}</span>
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold">{vibe.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{vibe.desc}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               </div>

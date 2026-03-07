@@ -3,6 +3,9 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import { autoSeedIfEmpty } from "./auto-seed";
+import { seedExtraUsers } from "./seed-extra-users";
+import { db } from "./db";
+import { sql } from "drizzle-orm";
 
 const app = express();
 const httpServer = createServer(app);
@@ -70,7 +73,36 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Run schema migrations before any seed or query that touches repertoire_entries
+  try {
+    await db.execute(sql`ALTER TABLE repertoire_entries ADD COLUMN IF NOT EXISTS current_cycle integer NOT NULL DEFAULT 1`);
+    await db.execute(sql`CREATE TABLE IF NOT EXISTS piece_milestones (
+      id serial PRIMARY KEY,
+      user_id varchar NOT NULL REFERENCES users(id),
+      piece_id integer NOT NULL REFERENCES pieces(id),
+      movement_id integer REFERENCES movements(id),
+      cycle_number integer NOT NULL DEFAULT 1,
+      milestone_type text NOT NULL,
+      achieved_at text NOT NULL,
+      created_at timestamp DEFAULT now(),
+      UNIQUE(user_id, piece_id, movement_id, cycle_number, milestone_type)
+    )`);
+    await db.execute(sql`ALTER TABLE piece_milestones ADD COLUMN IF NOT EXISTS movement_id integer REFERENCES movements(id)`);
+    try {
+      await db.execute(sql`ALTER TABLE piece_milestones DROP CONSTRAINT IF EXISTS piece_milestones_user_id_piece_id_cycle_number_milestone_type_key`);
+      await db.execute(sql`ALTER TABLE piece_milestones DROP CONSTRAINT IF EXISTS piece_milestones_unique`);
+    } catch (_) { /* ignore if missing */ }
+    await db.execute(sql`DO $$ BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'piece_milestones_unique') THEN
+        ALTER TABLE piece_milestones ADD CONSTRAINT piece_milestones_unique UNIQUE (user_id, piece_id, movement_id, cycle_number, milestone_type);
+      END IF; END $$`);
+    console.log("Schema migrations applied");
+  } catch (err) {
+    console.error("Migration error (non-fatal):", err);
+  }
+
   await autoSeedIfEmpty();
+  await seedExtraUsers();
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

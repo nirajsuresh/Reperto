@@ -14,11 +14,37 @@ import {
   type PieceAnalysis, type InsertPieceAnalysis,
   type Connection, type InsertConnection,
   type ComposerFollow,
+  type PieceMilestone,
   users, composers, pieces, movements, repertoireEntries, posts, postLikes, postComments, challenges, userProfiles, follows,
-  pieceRatings, pieceComments, pieceAnalyses, connections, composerFollows
+  pieceRatings, pieceComments, pieceAnalyses, connections, composerFollows, composerComments, pieceMilestones
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, ilike, and, desc, inArray, sql, count, avg, or, ne } from "drizzle-orm";
+
+const CANONICAL_REPERTOIRE_STATUSES = [
+  "Want to learn",
+  "Up next",
+  "In Progress",
+  "Maintaining",
+  "Resting",
+] as const;
+
+function normalizeStatusKey(status: string): string {
+  return status.trim().toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ");
+}
+
+function normalizeRepertoireStatus(status: string | null | undefined): string {
+  if (!status || typeof status !== "string") return "In Progress";
+  const key = normalizeStatusKey(status);
+  if (key === "want to learn" || key === "wishlist") return "Want to learn";
+  if (key === "up next") return "Up next";
+  if (key === "in progress" || key === "learning" || key === "refining" || key === "polishing") return "In Progress";
+  if (key === "maintaining" || key === "performance ready" || key === "learned") return "Maintaining";
+  if (key === "resting" || key === "shelved" || key === "stopped learning" || key === "paused") return "Resting";
+
+  const canonical = CANONICAL_REPERTOIRE_STATUSES.find((s) => normalizeStatusKey(s) === key);
+  return canonical ?? "In Progress";
+}
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -38,11 +64,21 @@ export interface IStorage {
   getMovementById(id: number): Promise<Movement | undefined>;
   createMovement(movement: InsertMovement): Promise<Movement>;
   
-  getRepertoireByUser(userId: string): Promise<(RepertoireEntry & { 
-    composerName: string; 
-    pieceTitle: string; 
-    movementName: string | null 
-  })[]>;
+  getRepertoireByUser(userId: string): Promise<{
+    entries: (RepertoireEntry & {
+      composerName: string;
+      pieceTitle: string;
+      movementName: string | null;
+      composer_image_url: string | null;
+      composer_period: string | null;
+      composer_birth_year?: number | null;
+      composer_death_year?: number | null;
+      hasStartedMilestone: boolean;
+      everMilestone: "completed" | "performed" | null;
+      performedCount: number;
+    })[];
+    movementOrderByPiece: Record<number, number[]>;
+  }>;
   createRepertoireEntry(entry: InsertRepertoireEntry): Promise<RepertoireEntry>;
   updateRepertoireEntry(id: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry | undefined>;
   updateRepertoireByPiece(userId: string, pieceId: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry[]>;
@@ -103,8 +139,12 @@ export interface IStorage {
   getComposerCommunityStats(composerId: number): Promise<{
     followerCount: number;
     activeLearners: number;
+    catalogSize: number;
     mostPopularPiece: { id: number; title: string; learnerCount: number } | null;
   }>;
+  getComposerComments(composerId: number, limit?: number): Promise<any[]>;
+  addComposerComment(composerId: number, userId: string, content: string): Promise<any>;
+  getComposerChallenges(composerId: number, limit?: number): Promise<any[]>;
   getComposerPiecesWithCounts(composerId: number): Promise<(Piece & { learnerCount: number })[]>;
   getPieceActivity(pieceId: number, limit?: number): Promise<any[]>;
   getPieceLearners(pieceId: number, limit?: number): Promise<{ userId: string; displayName: string | null; avatarUrl: string | null; status: string }[]>;
@@ -113,6 +153,25 @@ export interface IStorage {
     userId: string; displayName: string | null; avatarUrl: string | null; instrument: string | null;
   }[]>;
   getComposerActivity(composerId: number, limit?: number): Promise<any[]>;
+  // Pioneer badge queries
+  getPioneerStatus(userId: string): Promise<{ pioneerComposers: string[]; pioneerPieces: string[] }>;
+  // Communities feed
+  getFollowedComposersWithFeed(userId: string): Promise<Array<{
+    id: number; name: string; imageUrl: string | null; period: string | null;
+    learnerCount: number; followerCount: number; recentActivity: any[];
+  }>>;
+  getTrendingCommunityData(): Promise<{
+    composers: Array<{ id: number; name: string; imageUrl: string | null; period: string | null; learnerCount: number }>;
+    pieces:    Array<{ id: number; title: string; composerName: string; composerId: number; learnerCount: number }>;
+  }>;
+
+  // Milestones
+  getMilestones(userId: string, pieceId: number, movementId?: number | null): Promise<PieceMilestone[]>;
+  upsertMilestone(userId: string, pieceId: number, cycleNumber: number, milestoneType: string, achievedAt: string, movementId?: number | null): Promise<PieceMilestone>;
+  updateMilestoneDate(id: number, achievedAt: string): Promise<PieceMilestone | undefined>;
+  deleteMilestone(id: number): Promise<boolean>;
+  startNewCycle(repertoireEntryId: number): Promise<RepertoireEntry | undefined>;
+  removeCurrentCycle(repertoireEntryId: number): Promise<RepertoireEntry | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -161,6 +220,11 @@ export class DatabaseStorage implements IStorage {
       id: pieces.id,
       title: pieces.title,
       composerId: pieces.composerId,
+      instrument: pieces.instrument,
+      imslpUrl: pieces.imslpUrl,
+      keySignature: pieces.keySignature,
+      yearComposed: pieces.yearComposed,
+      difficulty: pieces.difficulty,
       composerName: composers.name,
     };
 
@@ -213,7 +277,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMovementsByPiece(pieceId: number): Promise<Movement[]> {
-    return db.select().from(movements).where(eq(movements.pieceId, pieceId));
+    return db.select().from(movements).where(eq(movements.pieceId, pieceId)).orderBy(movements.id);
   }
 
   async getMovementById(id: number): Promise<Movement | undefined> {
@@ -226,11 +290,23 @@ export class DatabaseStorage implements IStorage {
     return newMovement;
   }
 
-  async getRepertoireByUser(userId: string): Promise<(RepertoireEntry & { 
-    composerName: string; 
-    pieceTitle: string; 
-    movementName: string | null 
-  })[]> {
+  async getRepertoireByUser(userId: string): Promise<{
+    entries: (RepertoireEntry & {
+      composerName: string;
+      pieceTitle: string;
+      movementName: string | null;
+      composer_image_url: string | null;
+      composer_period: string | null;
+      composer_birth_year?: number | null;
+      composer_death_year?: number | null;
+      hasStartedMilestone: boolean;
+      everMilestone: "completed" | "performed" | null;
+      performedCount: number;
+      movementEverMilestone: "completed" | "performed" | null;
+      movementPerformedCount: number;
+    })[];
+    movementOrderByPiece: Record<number, number[]>;
+  }> {
     const results = await db
       .select({
         id: repertoireEntries.id,
@@ -243,9 +319,79 @@ export class DatabaseStorage implements IStorage {
         displayOrder: repertoireEntries.displayOrder,
         progress: repertoireEntries.progress,
         splitView: repertoireEntries.splitView,
+        currentCycle: repertoireEntries.currentCycle,
         composerName: composers.name,
         pieceTitle: pieces.title,
         movementName: movements.name,
+        composer_image_url: composers.imageUrl,
+        composer_period: composers.period,
+        composer_birth_year: composers.birthYear,
+        composer_death_year: composers.deathYear,
+        hasStartedMilestone: sql<boolean>`EXISTS (
+          SELECT 1
+          FROM ${pieceMilestones} pm
+          WHERE pm.user_id = ${userId}
+            AND pm.piece_id = ${repertoireEntries.pieceId}
+            AND pm.milestone_type = 'started'
+        )`,
+        everMilestone: sql<"completed" | "performed" | null>`CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM ${pieceMilestones} pm
+            WHERE pm.user_id = ${userId}
+              AND pm.piece_id = ${repertoireEntries.pieceId}
+              AND pm.movement_id IS NULL
+              AND pm.milestone_type LIKE 'performed%'
+          ) THEN 'performed'
+          WHEN EXISTS (
+            SELECT 1
+            FROM ${pieceMilestones} pm
+            WHERE pm.user_id = ${userId}
+              AND pm.piece_id = ${repertoireEntries.pieceId}
+              AND pm.movement_id IS NULL
+              AND pm.milestone_type = 'completed'
+          ) THEN 'completed'
+          ELSE NULL
+        END`,
+        performedCount: sql<number>`(
+          SELECT COUNT(*)
+          FROM ${pieceMilestones} pm
+          WHERE pm.user_id = ${userId}
+            AND pm.piece_id = ${repertoireEntries.pieceId}
+            AND pm.movement_id IS NULL
+            AND pm.milestone_type LIKE 'performed%'
+        )::int`,
+        movementEverMilestone: sql<"completed" | "performed" | null>`CASE
+          WHEN ${repertoireEntries.movementId} IS NULL THEN NULL
+          WHEN EXISTS (
+            SELECT 1
+            FROM ${pieceMilestones} pm
+            WHERE pm.user_id = ${userId}
+              AND pm.piece_id = ${repertoireEntries.pieceId}
+              AND pm.movement_id = ${repertoireEntries.movementId}
+              AND pm.milestone_type LIKE 'performed%'
+          ) THEN 'performed'
+          WHEN EXISTS (
+            SELECT 1
+            FROM ${pieceMilestones} pm
+            WHERE pm.user_id = ${userId}
+              AND pm.piece_id = ${repertoireEntries.pieceId}
+              AND pm.movement_id = ${repertoireEntries.movementId}
+              AND pm.milestone_type = 'completed'
+          ) THEN 'completed'
+          ELSE NULL
+        END`,
+        movementPerformedCount: sql<number>`CASE
+          WHEN ${repertoireEntries.movementId} IS NULL THEN 0
+          ELSE (
+            SELECT COUNT(*)
+            FROM ${pieceMilestones} pm
+            WHERE pm.user_id = ${userId}
+              AND pm.piece_id = ${repertoireEntries.pieceId}
+              AND pm.movement_id = ${repertoireEntries.movementId}
+              AND pm.milestone_type LIKE 'performed%'
+          )::int
+        END`,
       })
       .from(repertoireEntries)
       .innerJoin(composers, eq(repertoireEntries.composerId, composers.id))
@@ -253,8 +399,20 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(movements, eq(repertoireEntries.movementId, movements.id))
       .where(eq(repertoireEntries.userId, userId))
       .orderBy(repertoireEntries.displayOrder, repertoireEntries.id);
-    
-    return results;
+
+    const entries = results.map((row) => ({
+      ...row,
+      status: normalizeRepertoireStatus(row.status),
+    }));
+
+    const pieceIds = Array.from(new Set(results.map((r) => r.pieceId)));
+    const movementOrderByPiece: Record<number, number[]> = {};
+    for (const pieceId of pieceIds) {
+      const list = await this.getMovementsByPiece(pieceId);
+      movementOrderByPiece[pieceId] = list.map((m) => m.id);
+    }
+
+    return { entries, movementOrderByPiece };
   }
 
   async updateRepertoireOrder(userId: string, order: { pieceId: number; displayOrder: number }[]): Promise<void> {
@@ -274,6 +432,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRepertoireEntry(entry: InsertRepertoireEntry): Promise<RepertoireEntry> {
+    entry = { ...entry, status: normalizeRepertoireStatus(entry.status) };
     if (entry.displayOrder === undefined || entry.displayOrder === null) {
       const [maxResult] = await db
         .select({ maxOrder: sql<number>`COALESCE(MAX(${repertoireEntries.displayOrder}), -1)` })
@@ -286,11 +445,44 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateRepertoireEntry(id: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry | undefined> {
+    if (updates.status !== undefined) {
+      updates = { ...updates, status: normalizeRepertoireStatus(updates.status) };
+    }
     const [updated] = await db.update(repertoireEntries).set(updates).where(eq(repertoireEntries.id, id)).returning();
     return updated;
   }
 
   async updateRepertoireByPiece(userId: string, pieceId: number, updates: Partial<InsertRepertoireEntry>): Promise<RepertoireEntry[]> {
+    if (updates.status !== undefined) {
+      updates = { ...updates, status: normalizeRepertoireStatus(updates.status) };
+    }
+    if (updates.splitView === true) {
+      const entries = await db.select().from(repertoireEntries).where(and(eq(repertoireEntries.userId, userId), eq(repertoireEntries.pieceId, pieceId)));
+      const wholePieceEntry = entries.find(e => e.movementId === null);
+      if (wholePieceEntry && entries.length === 1) {
+        const movementList = await this.getMovementsByPiece(pieceId);
+        if (movementList.length > 0) {
+          const baseOrder = wholePieceEntry.displayOrder;
+          for (let i = 0; i < movementList.length; i++) {
+            await this.createRepertoireEntry({
+              userId,
+              composerId: wholePieceEntry.composerId,
+              pieceId,
+              movementId: movementList[i].id,
+              status: wholePieceEntry.status,
+              startedDate: wholePieceEntry.startedDate,
+              displayOrder: baseOrder + i,
+              progress: wholePieceEntry.progress,
+              splitView: true,
+              currentCycle: wholePieceEntry.currentCycle,
+            });
+          }
+          await this.deleteRepertoireEntry(wholePieceEntry.id);
+          const after = await db.select().from(repertoireEntries).where(and(eq(repertoireEntries.userId, userId), eq(repertoireEntries.pieceId, pieceId)));
+          return after;
+        }
+      }
+    }
     const updated = await db.update(repertoireEntries)
       .set(updates)
       .where(and(eq(repertoireEntries.userId, userId), eq(repertoireEntries.pieceId, pieceId)))
@@ -529,8 +721,14 @@ export class DatabaseStorage implements IStorage {
       .from(repertoireEntries)
       .where(eq(repertoireEntries.pieceId, pieceId))
       .groupBy(repertoireEntries.status);
-    
-    return results;
+
+    const merged = new Map<string, number>();
+    for (const row of results) {
+      const normalized = normalizeRepertoireStatus(row.status);
+      merged.set(normalized, (merged.get(normalized) ?? 0) + row.count);
+    }
+
+    return Array.from(merged.entries()).map(([status, count]) => ({ status, count }));
   }
   async getPieceAnalysis(pieceId: number): Promise<PieceAnalysis | undefined> {
     const [analysis] = await db.select().from(pieceAnalyses).where(eq(pieceAnalyses.pieceId, pieceId));
@@ -568,40 +766,41 @@ export class DatabaseStorage implements IStorage {
     const pieceTokenHits = tokens.map(t => sql`CASE WHEN unaccent(${pieceCombined}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
     const pieceTokenScore = sql`(${sql.join(pieceTokenHits, sql` + `)})::float / ${tokens.length}`;
 
-    const pieceResults = await db.select({
-      composerId: pieces.composerId,
-      composerName: composers.name,
-      pieceId: pieces.id,
-      pieceTitle: pieces.title,
-      score: sql<number>`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieceCombined})), ${pieceTokenScore})`,
-    })
-      .from(pieces)
-      .innerJoin(composers, eq(pieces.composerId, composers.id))
-      .where(sql`(${pieceAllTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${pieceCombined})) > 0.3`)
-      .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieceCombined})), ${pieceTokenScore}) DESC`)
-      .limit(15);
-
     const mvtCombined = sql`(${movements.name} || ' ' || ${pieces.title} || ' ' || ${composers.name})`;
     const mvtTokenConditions = tokens.map(t => sql`unaccent(${mvtCombined}) ILIKE unaccent(${'%' + t + '%'})`);
     const mvtAllTokensMatch = sql.join(mvtTokenConditions, sql` AND `);
     const mvtTokenHits = tokens.map(t => sql`CASE WHEN unaccent(${mvtCombined}) ILIKE unaccent(${'%' + t + '%'}) THEN 1 ELSE 0 END`);
     const mvtTokenScore = sql`(${sql.join(mvtTokenHits, sql` + `)})::float / ${tokens.length}`;
 
-    const movementResults = await db.select({
-      composerId: pieces.composerId,
-      composerName: composers.name,
-      pieceId: pieces.id,
-      pieceTitle: pieces.title,
-      movementId: movements.id,
-      movementName: movements.name,
-      score: sql<number>`GREATEST(word_similarity(unaccent(${query}), unaccent(${mvtCombined})), ${mvtTokenScore})`,
-    })
-      .from(movements)
-      .innerJoin(pieces, eq(movements.pieceId, pieces.id))
-      .innerJoin(composers, eq(pieces.composerId, composers.id))
-      .where(sql`(${mvtAllTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${mvtCombined})) > 0.3`)
-      .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${mvtCombined})), ${mvtTokenScore}) DESC`)
-      .limit(15);
+    const [pieceResults, movementResults] = await Promise.all([
+      db.select({
+        composerId: pieces.composerId,
+        composerName: composers.name,
+        pieceId: pieces.id,
+        pieceTitle: pieces.title,
+        score: sql<number>`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieceCombined})), ${pieceTokenScore})`,
+      })
+        .from(pieces)
+        .innerJoin(composers, eq(pieces.composerId, composers.id))
+        .where(sql`(${pieceAllTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${pieceCombined})) > 0.3`)
+        .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${pieceCombined})), ${pieceTokenScore}) DESC`)
+        .limit(15),
+      db.select({
+        composerId: pieces.composerId,
+        composerName: composers.name,
+        pieceId: pieces.id,
+        pieceTitle: pieces.title,
+        movementId: movements.id,
+        movementName: movements.name,
+        score: sql<number>`GREATEST(word_similarity(unaccent(${query}), unaccent(${mvtCombined})), ${mvtTokenScore})`,
+      })
+        .from(movements)
+        .innerJoin(pieces, eq(movements.pieceId, pieces.id))
+        .innerJoin(composers, eq(pieces.composerId, composers.id))
+        .where(sql`(${mvtAllTokensMatch}) OR word_similarity(unaccent(${query}), unaccent(${mvtCombined})) > 0.3`)
+        .orderBy(sql`GREATEST(word_similarity(unaccent(${query}), unaccent(${mvtCombined})), ${mvtTokenScore}) DESC`)
+        .limit(15),
+    ]);
 
     const combined = [
       ...pieceResults.map(r => ({ type: "piece" as const, ...r, movementId: null, movementName: null })),
@@ -770,39 +969,97 @@ export class DatabaseStorage implements IStorage {
   async getComposerCommunityStats(composerId: number): Promise<{
     followerCount: number;
     activeLearners: number;
+    catalogSize: number;
     mostPopularPiece: { id: number; title: string; learnerCount: number } | null;
   }> {
-    const [followerRow] = await db
-      .select({ count: count() })
-      .from(composerFollows)
-      .where(eq(composerFollows.composerId, composerId));
-
-    const [learnersRow] = await db
-      .select({ count: sql<number>`count(distinct ${repertoireEntries.userId})` })
-      .from(repertoireEntries)
-      .innerJoin(pieces, eq(repertoireEntries.pieceId, pieces.id))
-      .where(eq(pieces.composerId, composerId));
-
-    const pieceRows = await db
-      .select({
-        id: pieces.id,
-        title: pieces.title,
-        learnerCount: sql<number>`count(${repertoireEntries.id})`,
-      })
-      .from(pieces)
-      .leftJoin(repertoireEntries, eq(pieces.id, repertoireEntries.pieceId))
-      .where(eq(pieces.composerId, composerId))
-      .groupBy(pieces.id, pieces.title)
-      .orderBy(desc(sql`count(${repertoireEntries.id})`))
-      .limit(1);
+    const [followerRow, learnersRow, catalogRow, pieceRows] = await Promise.all([
+      db.select({ count: count() }).from(composerFollows).where(eq(composerFollows.composerId, composerId)),
+      db.select({ count: sql<number>`count(distinct ${repertoireEntries.userId})` })
+        .from(repertoireEntries)
+        .innerJoin(pieces, eq(repertoireEntries.pieceId, pieces.id))
+        .where(eq(pieces.composerId, composerId)),
+      db.select({ count: count() }).from(pieces).where(eq(pieces.composerId, composerId)),
+      db.select({ id: pieces.id, title: pieces.title, learnerCount: sql<number>`count(${repertoireEntries.id})` })
+        .from(pieces)
+        .leftJoin(repertoireEntries, eq(pieces.id, repertoireEntries.pieceId))
+        .where(eq(pieces.composerId, composerId))
+        .groupBy(pieces.id, pieces.title)
+        .orderBy(desc(sql`count(${repertoireEntries.id})`))
+        .limit(1),
+    ]);
 
     const topPiece = pieceRows[0] ?? null;
-
     return {
-      followerCount: followerRow?.count ?? 0,
-      activeLearners: Number(learnersRow?.count ?? 0),
+      followerCount: followerRow[0]?.count ?? 0,
+      activeLearners: Number(learnersRow[0]?.count ?? 0),
+      catalogSize: catalogRow[0]?.count ?? 0,
       mostPopularPiece: topPiece ? { id: topPiece.id, title: topPiece.title, learnerCount: Number(topPiece.learnerCount) } : null,
     };
+  }
+
+  async getComposerComments(composerId: number, limit = 8): Promise<any[]> {
+    return db
+      .select({
+        id: composerComments.id,
+        userId: composerComments.userId,
+        content: composerComments.content,
+        createdAt: composerComments.createdAt,
+        displayName: userProfiles.displayName,
+        avatarUrl: userProfiles.avatarUrl,
+      })
+      .from(composerComments)
+      .leftJoin(userProfiles, eq(composerComments.userId, userProfiles.userId))
+      .where(eq(composerComments.composerId, composerId))
+      .orderBy(desc(composerComments.createdAt))
+      .limit(limit);
+  }
+
+  async addComposerComment(composerId: number, userId: string, content: string): Promise<any> {
+    const [row] = await db
+      .insert(composerComments)
+      .values({ composerId, userId, content })
+      .returning();
+    // Re-fetch with profile join
+    const [enriched] = await db
+      .select({
+        id: composerComments.id,
+        userId: composerComments.userId,
+        content: composerComments.content,
+        createdAt: composerComments.createdAt,
+        displayName: userProfiles.displayName,
+        avatarUrl: userProfiles.avatarUrl,
+      })
+      .from(composerComments)
+      .leftJoin(userProfiles, eq(composerComments.userId, userProfiles.userId))
+      .where(eq(composerComments.id, row.id));
+    return enriched;
+  }
+
+  async getComposerChallenges(composerId: number, limit = 3): Promise<any[]> {
+    // Find active challenges where the linked piece belongs to this composer
+    return db
+      .select({
+        id: challenges.id,
+        title: challenges.title,
+        description: challenges.description,
+        deadline: challenges.deadline,
+        pieceId: challenges.pieceId,
+        pieceTitle: pieces.title,
+      })
+      .from(challenges)
+      .leftJoin(pieces, eq(challenges.pieceId, pieces.id))
+      .where(
+        and(
+          eq(challenges.isActive, true),
+          or(
+            eq(pieces.composerId, composerId),
+            // Also include challenges without a pieceId linkage (community-wide)
+            sql`${challenges.pieceId} is null`
+          )
+        )
+      )
+      .orderBy(desc(challenges.createdAt))
+      .limit(limit);
   }
 
   async getPieceActivity(pieceId: number, limit = 8): Promise<any[]> {
@@ -811,7 +1068,7 @@ export class DatabaseStorage implements IStorage {
         id: posts.id,
         userId: posts.userId,
         content: posts.content,
-        postType: posts.postType,
+        postType: posts.type,
         createdAt: posts.createdAt,
         displayName: userProfiles.displayName,
         avatarUrl: userProfiles.avatarUrl,
@@ -885,7 +1142,7 @@ export class DatabaseStorage implements IStorage {
         id: posts.id,
         userId: posts.userId,
         content: posts.content,
-        postType: posts.postType,
+        postType: posts.type,
         pieceId: posts.pieceId,
         pieceTitle: pieces.title,
         createdAt: posts.createdAt,
@@ -895,10 +1152,58 @@ export class DatabaseStorage implements IStorage {
       .from(posts)
       .innerJoin(pieces, eq(posts.pieceId, pieces.id))
       .leftJoin(userProfiles, eq(posts.userId, userProfiles.userId))
-      .where(and(eq(pieces.composerId, composerId), ne(posts.postType, "recording")))
+      .where(and(eq(pieces.composerId, composerId), ne(posts.type, "recording")))
       .orderBy(desc(posts.createdAt))
       .limit(limit);
     return rows;
+  }
+
+  // Pioneer status: composer pioneer = first follower; piece pioneer = first post for a piece
+  async getPioneerStatus(userId: string): Promise<{ pioneerComposers: string[]; pioneerPieces: string[] }> {
+    // Composers where this user was the very first follower
+    const followedRows = await db
+      .select({ composerId: composerFollows.composerId, composerName: composers.name, followedAt: composerFollows.createdAt })
+      .from(composerFollows)
+      .innerJoin(composers, eq(composerFollows.composerId, composers.id))
+      .where(eq(composerFollows.userId, userId));
+
+    const pioneerComposers: string[] = [];
+    for (const row of followedRows) {
+      const [first] = await db
+        .select({ userId: composerFollows.userId })
+        .from(composerFollows)
+        .where(eq(composerFollows.composerId, row.composerId))
+        .orderBy(composerFollows.createdAt)
+        .limit(1);
+      if (first?.userId === userId) {
+        pioneerComposers.push(row.composerName);
+      }
+    }
+
+    // Pieces where this user was the first to post (any post type)
+    const userPostedPieces = await db
+      .select({ pieceId: posts.pieceId, pieceTitle: pieces.title, createdAt: posts.createdAt })
+      .from(posts)
+      .innerJoin(pieces, eq(posts.pieceId, pieces.id))
+      .where(and(eq(posts.userId, userId), sql`${posts.pieceId} is not null`));
+
+    const pioneerPieces: string[] = [];
+    const seenPieces = new Set<number>();
+    for (const row of userPostedPieces) {
+      if (!row.pieceId || seenPieces.has(row.pieceId)) continue;
+      seenPieces.add(row.pieceId);
+      const [first] = await db
+        .select({ userId: posts.userId })
+        .from(posts)
+        .where(and(eq(posts.pieceId, row.pieceId!), sql`${posts.pieceId} is not null`))
+        .orderBy(posts.createdAt)
+        .limit(1);
+      if (first?.userId === userId) {
+        pioneerPieces.push(row.pieceTitle);
+      }
+    }
+
+    return { pioneerComposers, pioneerPieces };
   }
 
   async getComposerPiecesWithCounts(composerId: number): Promise<(Piece & { learnerCount: number })[]> {
@@ -922,6 +1227,205 @@ export class DatabaseStorage implements IStorage {
 
     return rows.map(r => ({ ...r, learnerCount: Number(r.learnerCount) }));
   }
+
+  // ── Communities feed ─────────────────────────────────────────────────────────
+
+  async getFollowedComposersWithFeed(userId: string) {
+    const followedList = await db
+      .select({ id: composers.id, name: composers.name, imageUrl: composers.imageUrl, period: composers.period })
+      .from(composerFollows)
+      .innerJoin(composers, eq(composerFollows.composerId, composers.id))
+      .where(eq(composerFollows.userId, userId))
+      .orderBy(composers.name);
+
+    if (followedList.length === 0) return [];
+
+    return Promise.all(followedList.map(async (c) => {
+      const [learnerRes, followerRes, activity] = await Promise.all([
+        db.select({ count: sql<number>`count(distinct ${repertoireEntries.userId})::int` })
+          .from(repertoireEntries).where(eq(repertoireEntries.composerId, c.id)),
+        db.select({ count: sql<number>`count(*)::int` })
+          .from(composerFollows).where(eq(composerFollows.composerId, c.id)),
+        this.getComposerActivity(c.id, 6),
+      ]);
+      return {
+        ...c,
+        learnerCount: Number(learnerRes[0]?.count ?? 0),
+        followerCount: Number(followerRes[0]?.count ?? 0),
+        recentActivity: activity,
+      };
+    }));
+  }
+
+  async getTrendingCommunityData() {
+    const [trendingComposers, trendingPieces] = await Promise.all([
+      db.select({
+        id: composers.id, name: composers.name,
+        imageUrl: composers.imageUrl, period: composers.period,
+        learnerCount: sql<number>`count(distinct ${repertoireEntries.userId})::int`,
+      })
+      .from(composers)
+      .leftJoin(repertoireEntries, eq(repertoireEntries.composerId, composers.id))
+      .groupBy(composers.id, composers.name, composers.imageUrl, composers.period)
+      .orderBy(desc(sql`count(distinct ${repertoireEntries.userId})`))
+      .limit(8),
+
+      db.select({
+        id: pieces.id, title: pieces.title, composerId: pieces.composerId,
+        composerName: composers.name,
+        learnerCount: sql<number>`count(distinct ${repertoireEntries.userId})::int`,
+      })
+      .from(pieces)
+      .innerJoin(composers, eq(pieces.composerId, composers.id))
+      .leftJoin(repertoireEntries, eq(repertoireEntries.pieceId, pieces.id))
+      .groupBy(pieces.id, pieces.title, pieces.composerId, composers.name)
+      .orderBy(desc(sql`count(distinct ${repertoireEntries.userId})`))
+      .limit(8),
+    ]);
+
+    return {
+      composers: trendingComposers.map(c => ({ ...c, learnerCount: Number(c.learnerCount) })),
+      pieces:    trendingPieces.map(p => ({ ...p, learnerCount: Number(p.learnerCount) })),
+    };
+  }
+
+  // ── Milestones ─────────────────────────────────────────────────────────────
+
+  async getMilestones(userId: string, pieceId: number, movementId?: number | null, allMovements?: boolean): Promise<PieceMilestone[]> {
+    const conditions = [eq(pieceMilestones.userId, userId), eq(pieceMilestones.pieceId, pieceId)];
+    if (movementId != null) {
+      // Filter to a specific movement
+      conditions.push(eq(pieceMilestones.movementId, movementId));
+    } else if (!allMovements) {
+      // Default: only piece-level milestones (no movement)
+      conditions.push(sql`${pieceMilestones.movementId} IS NULL`);
+    }
+    // allMovements=true: return everything (piece-level + all movements)
+    const rows = await db
+      .select()
+      .from(pieceMilestones)
+      .where(and(...conditions))
+      .orderBy(pieceMilestones.cycleNumber, pieceMilestones.achievedAt, pieceMilestones.createdAt);
+
+    return rows.map((row) => ({
+      ...row,
+      milestoneType: row.milestoneType.startsWith("performed") ? "performed" : row.milestoneType,
+    }));
+  }
+
+  async upsertMilestone(
+    userId: string,
+    pieceId: number,
+    cycleNumber: number,
+    milestoneType: string,
+    achievedAt: string,
+    movementId?: number | null,
+  ): Promise<PieceMilestone> {
+    const movementVal = movementId ?? null;
+    if (milestoneType === "performed") {
+      const performedType = `performed#${Date.now()}${Math.random().toString(36).slice(2, 7)}`;
+      const [row] = await db
+        .insert(pieceMilestones)
+        .values({ userId, pieceId, movementId: movementVal, cycleNumber, milestoneType: performedType, achievedAt })
+        .returning();
+      return { ...row, milestoneType: "performed" };
+    }
+
+    // Use UPDATE-then-INSERT to avoid ON CONFLICT ambiguity when there are
+    // multiple unique constraints on the table (e.g. a stale auto-generated
+    // constraint left over from before movement_id was added to the schema).
+    // The WHERE clause uses IS NULL for nullable movement_id comparisons.
+    const whereCondition = and(
+      eq(pieceMilestones.userId, userId),
+      eq(pieceMilestones.pieceId, pieceId),
+      eq(pieceMilestones.cycleNumber, cycleNumber),
+      eq(pieceMilestones.milestoneType, milestoneType),
+      movementVal !== null
+        ? eq(pieceMilestones.movementId, movementVal)
+        : sql`${pieceMilestones.movementId} IS NULL`,
+    );
+    const [updated] = await db
+      .update(pieceMilestones)
+      .set({ achievedAt })
+      .where(whereCondition)
+      .returning();
+    if (updated) return updated;
+    const [inserted] = await db
+      .insert(pieceMilestones)
+      .values({ userId, pieceId, movementId: movementVal, cycleNumber, milestoneType, achievedAt })
+      .returning();
+    return inserted;
+  }
+
+  async updateMilestoneDate(id: number, achievedAt: string): Promise<PieceMilestone | undefined> {
+    const [row] = await db
+      .update(pieceMilestones)
+      .set({ achievedAt })
+      .where(eq(pieceMilestones.id, id))
+      .returning();
+    if (!row) return undefined;
+    return {
+      ...row,
+      milestoneType: row.milestoneType.startsWith("performed") ? "performed" : row.milestoneType,
+    };
+  }
+
+  async deleteMilestone(id: number): Promise<boolean> {
+    const result = await db.delete(pieceMilestones).where(eq(pieceMilestones.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async startNewCycle(repertoireEntryId: number): Promise<RepertoireEntry | undefined> {
+    const [entry] = await db.select().from(repertoireEntries).where(eq(repertoireEntries.id, repertoireEntryId));
+    if (!entry) return undefined;
+
+    const entryWhere = entry.movementId != null
+      ? and(eq(repertoireEntries.userId, entry.userId), eq(repertoireEntries.pieceId, entry.pieceId), eq(repertoireEntries.movementId, entry.movementId))
+      : and(eq(repertoireEntries.userId, entry.userId), eq(repertoireEntries.pieceId, entry.pieceId));
+    const [maxCycleRow] = await db
+      .select({ maxCycle: sql<number>`MAX(${repertoireEntries.currentCycle})::int` })
+      .from(repertoireEntries)
+      .where(entryWhere);
+
+    const nextCycle = (maxCycleRow?.maxCycle ?? entry.currentCycle ?? 1) + 1;
+    const updatedRows = await db
+      .update(repertoireEntries)
+      .set({ currentCycle: nextCycle })
+      .where(eq(repertoireEntries.id, repertoireEntryId))
+      .returning();
+    return updatedRows[0];
+  }
+
+  async removeCurrentCycle(repertoireEntryId: number): Promise<RepertoireEntry | undefined> {
+    const [entry] = await db.select().from(repertoireEntries).where(eq(repertoireEntries.id, repertoireEntryId));
+    if (!entry) return undefined;
+    const entryWhere = entry.movementId != null
+      ? and(eq(repertoireEntries.userId, entry.userId), eq(repertoireEntries.pieceId, entry.pieceId), eq(repertoireEntries.movementId, entry.movementId))
+      : and(eq(repertoireEntries.userId, entry.userId), eq(repertoireEntries.pieceId, entry.pieceId));
+    const [maxCycleRow] = await db
+      .select({ maxCycle: sql<number>`MAX(${repertoireEntries.currentCycle})::int` })
+      .from(repertoireEntries)
+      .where(entryWhere);
+
+    const activeCycle = maxCycleRow?.maxCycle ?? entry.currentCycle ?? 1;
+    if (activeCycle <= 1) return entry;
+
+    const milestoneWhere = entry.movementId != null
+      ? and(eq(pieceMilestones.userId, entry.userId), eq(pieceMilestones.pieceId, entry.pieceId), eq(pieceMilestones.movementId, entry.movementId), eq(pieceMilestones.cycleNumber, activeCycle))
+      : and(eq(pieceMilestones.userId, entry.userId), eq(pieceMilestones.pieceId, entry.pieceId), sql`${pieceMilestones.movementId} IS NULL`, eq(pieceMilestones.cycleNumber, activeCycle));
+
+    const updatedRows = await db.transaction(async (tx) => {
+      await tx.delete(pieceMilestones).where(milestoneWhere);
+      return tx
+        .update(repertoireEntries)
+        .set({ currentCycle: activeCycle - 1 })
+        .where(eq(repertoireEntries.id, repertoireEntryId))
+        .returning();
+    });
+
+    return updatedRows[0];
+  }
+
 }
 
 export const storage = new DatabaseStorage();

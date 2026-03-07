@@ -125,7 +125,7 @@ export default function AuthPage() {
             </div>
           </Link>
           <blockquote className="max-w-md">
-            <p className="font-serif text-3xl leading-relaxed italic mb-6">
+            <p className="text-3xl leading-relaxed mb-6">
               "Music is the silence between the notes."
             </p>
             <footer className="text-sm uppercase tracking-widest opacity-70">— Claude Debussy</footer>
@@ -149,8 +149,8 @@ export default function AuthPage() {
 
           <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8 bg-muted/50 p-1">
-              <TabsTrigger value="login" data-testid="tab-login" className="font-serif text-lg">Log In</TabsTrigger>
-              <TabsTrigger value="register" data-testid="tab-register" className="font-serif text-lg">Sign Up</TabsTrigger>
+              <TabsTrigger value="login" data-testid="tab-login" className="text-lg">Log In</TabsTrigger>
+              <TabsTrigger value="register" data-testid="tab-register" className="text-lg">Sign Up</TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">

@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { MILESTONE_TYPES } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -103,6 +104,131 @@ export async function registerRoutes(
       res.json(activity);
     } catch (error) {
       res.status(500).json({ error: "Failed to get activity" });
+    }
+  });
+
+  app.get("/api/composers/:id/comments", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const comments = await storage.getComposerComments(id);
+      res.json(comments);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get composer comments" });
+    }
+  });
+
+  app.post("/api/composers/:id/comments", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { userId, content } = req.body;
+      if (!userId || !content?.trim()) return res.status(400).json({ error: "userId and content required" });
+      const comment = await storage.addComposerComment(id, userId, content.trim());
+      res.json(comment);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to add composer comment" });
+    }
+  });
+
+  app.get("/api/composers/:id/challenges", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = await storage.getComposerChallenges(id);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get composer challenges" });
+    }
+  });
+
+  // ── Milestones ─────────────────────────────────────────────────────────────
+  app.get("/api/milestones/:userId/:pieceId", async (req, res) => {
+    try {
+      const { userId, pieceId } = req.params;
+      const movementId = req.query.movementId != null ? parseInt(req.query.movementId as string) : undefined;
+      const allMovements = req.query.allMovements === "true";
+      const data = await storage.getMilestones(
+        userId,
+        parseInt(pieceId),
+        Number.isInteger(movementId) ? movementId : undefined,
+        allMovements,
+      );
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get milestones" });
+    }
+  });
+
+  app.post("/api/milestones", async (req, res) => {
+    try {
+      const { userId, pieceId, cycleNumber, milestoneType, achievedAt, movementId } = req.body;
+      if (!userId || !pieceId || !milestoneType || !achievedAt) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const normalizedType = String(milestoneType).trim();
+      if (!MILESTONE_TYPES.includes(normalizedType as (typeof MILESTONE_TYPES)[number])) {
+        return res.status(400).json({ error: `Invalid milestone type: ${normalizedType}` });
+      }
+      const parsedCycle = Number(cycleNumber ?? 1);
+      if (!Number.isInteger(parsedCycle) || parsedCycle < 1) {
+        return res.status(400).json({ error: "cycleNumber must be a positive integer" });
+      }
+      const normalizedDate = String(achievedAt).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+        return res.status(400).json({ error: "achievedAt must be YYYY-MM-DD" });
+      }
+      const parsedMovementId = movementId != null && movementId !== "" ? parseInt(movementId) : undefined;
+      const data = await storage.upsertMilestone(userId, parseInt(pieceId), parsedCycle, normalizedType, normalizedDate, Number.isInteger(parsedMovementId) ? parsedMovementId : undefined);
+      res.json(data);
+    } catch (error) {
+      console.error("[POST /api/milestones] error:", error instanceof Error ? error.message : error);
+      console.error("[POST /api/milestones] stack:", error instanceof Error ? error.stack : "N/A");
+      res.status(500).json({ error: "Failed to upsert milestone", detail: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  app.delete("/api/milestones/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const ok = await storage.deleteMilestone(id);
+      res.json({ success: ok });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete milestone" });
+    }
+  });
+
+  app.patch("/api/milestones/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const normalizedDate = String(req.body?.achievedAt ?? "").trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) {
+        return res.status(400).json({ error: "achievedAt must be YYYY-MM-DD" });
+      }
+      const updated = await storage.updateMilestoneDate(id, normalizedDate);
+      if (!updated) return res.status(404).json({ error: "Milestone not found" });
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update milestone" });
+    }
+  });
+
+  app.post("/api/repertoire/:id/new-cycle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.startNewCycle(id);
+      if (!entry) return res.status(404).json({ error: "Repertoire entry not found" });
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to start new cycle" });
+    }
+  });
+
+  app.post("/api/repertoire/:id/remove-cycle", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const entry = await storage.removeCurrentCycle(id);
+      if (!entry) return res.status(404).json({ error: "Repertoire entry not found" });
+      res.json(entry);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to remove current cycle" });
     }
   });
 
@@ -691,6 +817,34 @@ export async function registerRoutes(
       res.json(profile);
     } catch (error) {
       res.status(500).json({ error: "Failed to get user profile" });
+    }
+  });
+
+  app.get("/api/users/:userId/pioneer-status", async (req, res) => {
+    try {
+      const status = await storage.getPioneerStatus(req.params.userId);
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get pioneer status" });
+    }
+  });
+
+  // Communities feed
+  app.get("/api/users/:userId/followed-composers", async (req, res) => {
+    try {
+      const data = await storage.getFollowedComposersWithFeed(req.params.userId);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get followed composers" });
+    }
+  });
+
+  app.get("/api/community/trending", async (_req, res) => {
+    try {
+      const data = await storage.getTrendingCommunityData();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get trending data" });
     }
   });
 

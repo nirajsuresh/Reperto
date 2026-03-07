@@ -25,6 +25,7 @@ export const composers = pgTable("composers", {
   deathYear: integer("death_year"),
   nationality: text("nationality"),
   imageUrl: text("image_url"),
+  period: text("period"),
 });
 
 export const insertComposerSchema = createInsertSchema(composers).omit({ id: true });
@@ -78,11 +79,39 @@ export const repertoireEntries = pgTable("repertoire_entries", {
   displayOrder: integer("display_order").notNull().default(0),
   progress: integer("progress").notNull().default(0),
   splitView: boolean("split_view").notNull().default(false),
+  currentCycle: integer("current_cycle").notNull().default(1),
 });
 
 export const insertRepertoireEntrySchema = createInsertSchema(repertoireEntries).omit({ id: true });
 export type InsertRepertoireEntry = z.infer<typeof insertRepertoireEntrySchema>;
 export type RepertoireEntry = typeof repertoireEntries.$inferSelect;
+
+// Milestone types in learning order
+export const MILESTONE_TYPES = [
+  "started",
+  "read_through",
+  "notes_learned",
+  "up_to_speed",
+  "memorized",
+  "completed",
+  "performed",
+] as const;
+export type MilestoneType = (typeof MILESTONE_TYPES)[number];
+
+export const pieceMilestones = pgTable("piece_milestones", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  pieceId: integer("piece_id").notNull().references(() => pieces.id),
+  movementId: integer("movement_id").references(() => movements.id),
+  cycleNumber: integer("cycle_number").notNull().default(1),
+  milestoneType: text("milestone_type").notNull(),
+  achievedAt: text("achieved_at").notNull(), // ISO date string "YYYY-MM-DD"
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [unique("piece_milestones_unique").on(table.userId, table.pieceId, table.movementId, table.cycleNumber, table.milestoneType)]);
+
+export const insertPieceMilestoneSchema = createInsertSchema(pieceMilestones).omit({ id: true, createdAt: true });
+export type InsertPieceMilestone = z.infer<typeof insertPieceMilestoneSchema>;
+export type PieceMilestone = typeof pieceMilestones.$inferSelect;
 
 export const follows = pgTable("follows", {
   id: serial("id").primaryKey(),
@@ -184,6 +213,18 @@ export const pieceComments = pgTable("piece_comments", {
 export const insertPieceCommentSchema = createInsertSchema(pieceComments).omit({ id: true, createdAt: true });
 export type InsertPieceComment = z.infer<typeof insertPieceCommentSchema>;
 export type PieceComment = typeof pieceComments.$inferSelect;
+
+export const composerComments = pgTable("composer_comments", {
+  id: serial("id").primaryKey(),
+  composerId: integer("composer_id").notNull().references(() => composers.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertComposerCommentSchema = createInsertSchema(composerComments).omit({ id: true, createdAt: true });
+export type InsertComposerComment = z.infer<typeof insertComposerCommentSchema>;
+export type ComposerComment = typeof composerComments.$inferSelect;
 
 export const pieceAnalyses = pgTable("piece_analyses", {
   id: serial("id").primaryKey(),

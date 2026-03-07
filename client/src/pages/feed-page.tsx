@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef } from "react";
+import { BRAND } from "@/lib/palette";
 
 // Read userId directly from localStorage — same source as the rest of the app
 function getStoredUserId(): string {
@@ -169,12 +170,12 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
   };
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-border/50 hover:shadow-md transition-shadow" data-testid={`post-card-${post.id}`}>
+    <Card className="bg-card/90 backdrop-blur-sm border-border/50 hover:shadow-md transition-shadow" data-testid={`post-card-${post.id}`}>
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
-          <Avatar className="h-12 w-12 border-2 border-[#d4967c]/20">
+          <Avatar className="h-12 w-12 border-2" style={{ borderColor: BRAND.primaryMutedBorder }}>
             <AvatarImage src={post.avatarUrl || undefined} alt={post.displayName || "User"} />
-            <AvatarFallback className="bg-[#d4967c]/10 text-[#d4967c] font-semibold">
+            <AvatarFallback className="font-semibold" style={{ backgroundColor: BRAND.primaryMuted, color: BRAND.primary }}>
               {getInitials(post.displayName)}
             </AvatarFallback>
           </Avatar>
@@ -199,10 +200,10 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
               const movement = parts[1];
               return (
                 <p className="text-foreground mb-3" data-testid={`post-content-${post.id}`}>
-                  Moved{movement && <> <span className="italic text-muted-foreground">{movement}</span> of</>}{" "}
+                  Moved{movement && <> <span className="text-muted-foreground">{movement}</span> of</>}{" "}
                   {post.pieceTitle
-                    ? <Link href={`/piece/${post.pieceId}`}><span className="font-serif italic font-medium hover:underline">{post.pieceTitle}</span></Link>
-                    : <span className="font-serif italic font-medium">this piece</span>
+                    ? <Link href={`/piece/${post.pieceId}`}><span className="font-medium hover:underline">{post.pieceTitle}</span></Link>
+                    : <span className="font-medium">this piece</span>
                   } to <span className="font-semibold">{status}</span>
                 </p>
               );
@@ -213,7 +214,7 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
             {post.type !== "status_change" && post.pieceTitle && post.composerName && (
               <Link href={`/piece/${post.pieceId}`}>
                 <div className="inline-flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg hover:bg-muted transition-colors cursor-pointer mb-3" data-testid={`post-piece-${post.id}`}>
-                  <Music className="w-4 h-4 text-[#d4967c]" />
+                  <Music className="w-4 h-4" style={{ color: BRAND.primary }} />
                   <span className="text-sm">
                     <span className="font-medium">{post.pieceTitle}</span>
                     <span className="text-muted-foreground"> by {post.composerName}</span>
@@ -223,9 +224,9 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
             )}
 
             {post.recordingUrl && (
-              <div className="mt-3 p-4 bg-[#d4967c]/5 rounded-lg border border-[#d4967c]/20" data-testid={`post-recording-${post.id}`}>
+              <div className="mt-3 p-4 rounded-lg border" style={{ backgroundColor: BRAND.primaryMuted, borderColor: BRAND.primaryMutedBorder }} data-testid={`post-recording-${post.id}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-[#d4967c] flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.primary }}>
                     <Play className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -237,7 +238,7 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
             )}
 
             {post.practiceHours && post.type === "milestone" && (
-              <div className="mt-3 flex items-center gap-2 text-[#d4967c]" data-testid={`post-milestone-${post.id}`}>
+              <div className="mt-3 flex items-center gap-2" style={{ color: BRAND.primary }} data-testid={`post-milestone-${post.id}`}>
                 <Trophy className="w-5 h-5" />
                 <span className="font-semibold">{post.practiceHours} hours</span>
               </div>
@@ -248,11 +249,7 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
               <button
                 onClick={() => likeMutation.mutate()}
                 disabled={!authUserId || likeMutation.isPending}
-                className={`flex items-center gap-1.5 text-sm transition-colors disabled:opacity-40 ${
-                  post.userLiked
-                    ? "text-[#d4967c]"
-                    : "text-muted-foreground hover:text-[#d4967c]"
-                }`}
+                className={`flex items-center gap-1.5 text-sm transition-colors disabled:opacity-40 ${post.userLiked ? "text-accent" : "text-muted-foreground hover:text-accent"}`}
                 data-testid={`like-button-${post.id}`}
               >
                 <Heart className={`w-4 h-4 ${post.userLiked ? "fill-current" : ""}`} />
@@ -288,7 +285,7 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
                       <div key={comment.id} className="flex items-start gap-2">
                         <Avatar className="h-6 w-6 shrink-0 mt-0.5">
                           <AvatarImage src={comment.avatarUrl || undefined} />
-                          <AvatarFallback className="bg-[#d4967c]/10 text-[#d4967c] text-xs font-semibold">
+                          <AvatarFallback className="text-xs font-semibold" style={{ backgroundColor: BRAND.primaryMuted, color: BRAND.primary }}>
                             {getInitials(comment.displayName)}
                           </AvatarFallback>
                         </Avatar>
@@ -318,7 +315,10 @@ function PostCard({ post, feedUserId }: { post: FeedPost; feedUserId: string }) 
                       size="icon"
                       onClick={handleComment}
                       disabled={!commentText.trim() || commentMutation.isPending}
-                      className="shrink-0 bg-[#d4967c] hover:bg-[#c47a5a] text-white"
+                      className="shrink-0 text-white"
+                    style={{ backgroundColor: BRAND.primary }}
+                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = BRAND.primaryHover; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND.primary; }}
                     >
                       <Send className="w-4 h-4" />
                     </Button>
@@ -370,14 +370,14 @@ function ComposeBox({ feedUserId }: { feedUserId: string }) {
   };
 
   return (
-    <Card className="bg-white/80 backdrop-blur-sm border-border/50 mb-6">
+    <Card className="bg-card/90 backdrop-blur-sm border-border/50 mb-6">
       <CardContent className="p-4">
         <Textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Share what you're working on..."
-          className="min-h-[80px] resize-none mb-3 border-border/50 focus:border-[#d4967c]/50"
+          className="min-h-[80px] resize-none mb-3 border-border/50 focus:border-accent/60 focus-visible:ring-accent/30"
           rows={3}
         />
         <div className="flex items-center justify-between">
@@ -385,7 +385,10 @@ function ComposeBox({ feedUserId }: { feedUserId: string }) {
           <Button
             onClick={handlePost}
             disabled={!text.trim() || isPosting || !authUserId}
-            className="bg-[#d4967c] hover:bg-[#c47a5a] text-white"
+            className="text-white"
+            style={{ backgroundColor: BRAND.primary }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = BRAND.primaryHover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND.primary; }}
             size="sm"
           >
             <Send className="w-4 h-4 mr-2" />
@@ -403,11 +406,11 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
     : null;
 
   return (
-    <Card className="bg-gradient-to-br from-[#d4967c]/10 to-[#d4967c]/5 border-[#d4967c]/30 hover:border-[#d4967c]/50 transition-colors" data-testid={`challenge-card-${challenge.id}`}>
+    <Card className="transition-colors border-primary/25 hover:border-primary/45" style={{ background: `linear-gradient(to bottom right, ${BRAND.primaryMuted}, rgba(20,54,66,0.04))` }} data-testid={`challenge-card-${challenge.id}`}>
       <CardContent className="p-4">
         <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#d4967c]/20 flex items-center justify-center shrink-0">
-            <Target className="w-5 h-5 text-[#d4967c]" />
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: BRAND.primaryMuted }}>
+            <Target className="w-5 h-5" style={{ color: BRAND.primary }} />
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold text-foreground mb-1 truncate" data-testid={`challenge-title-${challenge.id}`}>
@@ -417,7 +420,7 @@ function ChallengeCard({ challenge }: { challenge: Challenge }) {
               {challenge.description}
             </p>
             {daysRemaining !== null && daysRemaining > 0 && (
-              <div className="flex items-center gap-1 text-xs text-[#d4967c]">
+              <div className="flex items-center gap-1 text-xs" style={{ color: BRAND.primary }}>
                 <Calendar className="w-3 h-3" />
                 <span>{daysRemaining} days left</span>
               </div>
@@ -434,7 +437,7 @@ function SuggestedUserCard({ user }: { user: SuggestedUser }) {
     <div className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted/50 transition-colors" data-testid={`suggested-user-${user.userId}`}>
       <Avatar className="h-10 w-10">
         <AvatarImage src={user.avatarUrl || undefined} alt={user.displayName} />
-        <AvatarFallback className="bg-[#d4967c]/10 text-[#d4967c] text-sm font-semibold">
+        <AvatarFallback className="text-sm font-semibold" style={{ backgroundColor: BRAND.primaryMuted, color: BRAND.primary }}>
           {getInitials(user.displayName)}
         </AvatarFallback>
       </Avatar>
@@ -455,7 +458,7 @@ function FeedSkeleton() {
   return (
     <div className="space-y-4">
       {[1, 2, 3].map((i) => (
-        <Card key={i} className="bg-white/80">
+        <Card key={i} className="bg-card/90">
           <CardContent className="p-5">
             <div className="flex items-start gap-4">
               <Skeleton className="h-12 w-12 rounded-full" />
@@ -513,8 +516,8 @@ export default function FeedPage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-background to-muted/30">
-        <div className="container mx-auto px-4 py-8 max-w-7xl">
+      <div className="min-h-screen bg-gradient-to-b from-background to-secondary/25">
+        <div className="container mx-auto px-4 xl:px-8 py-8 max-w-[1760px]">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
             <div className="lg:col-span-8">
@@ -543,7 +546,7 @@ export default function FeedPage() {
                   ))}
                 </div>
               ) : (
-                <Card className="bg-white/80">
+                <Card className="bg-card/90">
                   <CardContent className="p-12 text-center">
                     <Music className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-xl font-semibold mb-2">No posts yet</h3>
@@ -560,10 +563,10 @@ export default function FeedPage() {
             </div>
 
             <div className="lg:col-span-4 space-y-6">
-              <Card className="bg-white/80 backdrop-blur-sm border-border/50">
+              <Card className="bg-card/90 backdrop-blur-sm border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <Target className="w-5 h-5 text-[#d4967c]" />
+                    <Target className="w-5 h-5" style={{ color: BRAND.primary }} />
                     Community Challenges
                   </CardTitle>
                 </CardHeader>
@@ -583,7 +586,7 @@ export default function FeedPage() {
                   )}
 
                   {challenges && challenges.length > 3 && (
-                    <Button variant="ghost" className="w-full text-sm text-[#d4967c] hover:text-[#d4967c]" data-testid="button-view-all-challenges">
+                    <Button variant="ghost" className="w-full text-sm hover:opacity-80" style={{ color: BRAND.primary }} data-testid="button-view-all-challenges">
                       View All Challenges
                       <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
@@ -591,10 +594,10 @@ export default function FeedPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/80 backdrop-blur-sm border-border/50">
+              <Card className="bg-card/90 backdrop-blur-sm border-border/50">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
-                    <UserPlus className="w-5 h-5 text-[#d4967c]" />
+                    <UserPlus className="w-5 h-5" style={{ color: BRAND.primary }} />
                     Musicians to Follow
                   </CardTitle>
                 </CardHeader>
@@ -614,7 +617,7 @@ export default function FeedPage() {
               <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
                 <CardContent className="p-5">
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <Play className="w-4 h-4 text-[#d4967c]" />
+                    <Play className="w-4 h-4" style={{ color: BRAND.primary }} />
                     Latest Recordings
                   </h4>
                   <p className="text-sm text-muted-foreground mb-3">

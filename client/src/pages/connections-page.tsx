@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Check, X, Clock, Users } from "lucide-react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { SEMANTIC } from "@/lib/palette";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -105,7 +106,7 @@ export default function ConnectionsPage() {
             {received.length === 0 ? (
               <div className="text-center py-16 bg-muted/20 rounded-lg" data-testid="text-no-received">
                 <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground italic">No pending requests</p>
+                <p className="text-muted-foreground">No pending requests</p>
               </div>
             ) : (
               <div className="grid gap-4">
@@ -117,7 +118,7 @@ export default function ConnectionsPage() {
                         <AvatarFallback>{req.displayName?.split(' ').map(n => n[0]).join('') || '?'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <h3 className="font-serif text-lg font-bold" data-testid={`text-requester-${req.id}`}>{req.displayName}</h3>
+                        <h3 className="text-lg font-semibold" data-testid={`text-requester-${req.id}`}>{req.displayName}</h3>
                         <p className="text-sm text-muted-foreground">
                           {req.level}{req.instrument ? ` • ${req.instrument}` : ''}
                         </p>
@@ -154,7 +155,7 @@ export default function ConnectionsPage() {
             {sent.length === 0 ? (
               <div className="text-center py-16 bg-muted/20 rounded-lg" data-testid="text-no-sent">
                 <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground italic">No sent requests</p>
+                <p className="text-muted-foreground">No sent requests</p>
               </div>
             ) : (
               <div className="grid gap-4">
@@ -166,7 +167,7 @@ export default function ConnectionsPage() {
                         <AvatarFallback>{req.displayName?.split(' ').map(n => n[0]).join('') || '?'}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
-                        <h3 className="font-serif text-lg font-bold" data-testid={`text-recipient-${req.id}`}>{req.displayName}</h3>
+                        <h3 className="text-lg font-semibold" data-testid={`text-recipient-${req.id}`}>{req.displayName}</h3>
                         <p className="text-sm text-muted-foreground">
                           {req.level}{req.instrument ? ` • ${req.instrument}` : ''}
                         </p>
@@ -186,7 +187,7 @@ export default function ConnectionsPage() {
             {accepted.length === 0 ? (
               <div className="text-center py-16 bg-muted/20 rounded-lg" data-testid="text-no-connections">
                 <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground italic">No connections yet</p>
+                <p className="text-muted-foreground">No connections yet</p>
                 <p className="text-xs text-muted-foreground mt-1">Search for musicians to connect with</p>
               </div>
             ) : (
@@ -200,12 +201,12 @@ export default function ConnectionsPage() {
                           <AvatarFallback>{conn.displayName?.split(' ').map(n => n[0]).join('') || '?'}</AvatarFallback>
                         </Avatar>
                         <div className="flex-1">
-                          <h3 className="font-serif text-lg font-bold" data-testid={`text-connection-${conn.userId}`}>{conn.displayName}</h3>
+                          <h3 className="text-lg font-semibold" data-testid={`text-connection-${conn.userId}`}>{conn.displayName}</h3>
                           <p className="text-sm text-muted-foreground">
                             {conn.level}{conn.instrument ? ` • ${conn.instrument}` : ''}
                           </p>
                         </div>
-                        <Check className="w-5 h-5 text-green-600" />
+                        <Check className="w-5 h-5" style={{ color: SEMANTIC.success }} />
                       </CardContent>
                     </Card>
                   </Link>

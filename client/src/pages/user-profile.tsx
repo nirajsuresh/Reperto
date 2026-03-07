@@ -6,7 +6,7 @@ import { MapPin, Music2, ChevronDown, ChevronUp, UserPlus, Clock, Check, X, Lock
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { getStatusColor } from "@/lib/status-colors";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -64,10 +64,15 @@ export default function UserProfilePage() {
 
   const isConnected = connectionStatus?.status === "accepted";
 
-  const { data: repertoire = [] } = useQuery<RepertoireEntry[]>({
+  const { data: rawRepertoire } = useQuery<RepertoireEntry[] | { entries: RepertoireEntry[] }>({
     queryKey: [`/api/repertoire/${id}`],
     enabled: !!id && isConnected,
   });
+
+  const repertoire = useMemo(() => {
+    if (!rawRepertoire) return [];
+    return Array.isArray(rawRepertoire) ? rawRepertoire : (rawRepertoire.entries ?? []);
+  }, [rawRepertoire]);
 
   const sendRequest = useMutation({
     mutationFn: async () => {
@@ -104,7 +109,7 @@ export default function UserProfilePage() {
     return (
       <Layout>
         <div className="min-h-screen bg-background pb-20">
-          <div className="h-64 md:h-80 bg-[#d4967c]" />
+          <div className="h-64 md:h-80 bg-black" />
           <div className="container mx-auto px-4 -mt-32 relative z-10">
             <div className="flex flex-col md:flex-row items-end gap-6 mb-8">
               <Skeleton className="w-40 h-40 rounded-full" />
@@ -122,7 +127,7 @@ export default function UserProfilePage() {
   if (!profile) {
     return (
       <Layout>
-        <div className="p-20 text-center font-serif italic" data-testid="text-user-not-found">User not found.</div>
+        <div className="p-20 text-center" data-testid="text-user-not-found">User not found.</div>
       </Layout>
     );
   }
@@ -130,23 +135,23 @@ export default function UserProfilePage() {
   return (
     <Layout>
       <div className="min-h-screen bg-background pb-20">
-        <div className="h-64 md:h-80 bg-[#d4967c] relative overflow-hidden" />
+        <div className="h-64 md:h-80 relative overflow-hidden bg-black" />
 
         <div className="container mx-auto px-4 -mt-32 relative z-10">
           <div className="flex flex-col md:flex-row items-end gap-6 mb-8">
             <Avatar className="w-40 h-40 border-4 border-background shadow-2xl">
               <AvatarImage src={profile.avatarUrl || undefined} />
-              <AvatarFallback className="text-4xl font-serif">
+              <AvatarFallback className="text-4xl font-semibold">
                 {profile.displayName.split(' ').map(n => n[0]).join('')}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 pb-4 text-center md:text-left">
-              <h1 className="font-serif text-4xl font-bold text-primary mb-2" data-testid="text-profile-name">
+              <h1 className="font-serif text-4xl font-bold text-primary-foreground mb-2" data-testid="text-profile-name">
                 {profile.displayName}
               </h1>
-              <div className="flex flex-col md:flex-row items-center gap-4 text-muted-foreground mb-4">
+              <div className="flex flex-col md:flex-row items-center gap-4 text-primary-foreground/70 mb-4">
                 <span className="flex items-center gap-1 font-medium">
-                  {profile.instrument && <span className="text-accent-foreground">{profile.instrument}</span>}
+                  {profile.instrument && <span className="text-primary-foreground">{profile.instrument}</span>}
                   {profile.instrument && profile.level && ' • '}
                   {profile.level}
                 </span>
@@ -226,7 +231,7 @@ export default function UserProfilePage() {
 
                 {repertoire.length === 0 ? (
                   <div className="text-center py-12 bg-muted/20 rounded-lg" data-testid="text-no-repertoire">
-                    <p className="text-muted-foreground italic">No repertoire entries yet</p>
+                    <p className="text-muted-foreground">No repertoire entries yet</p>
                   </div>
                 ) : (
                   <>
@@ -244,7 +249,7 @@ export default function UserProfilePage() {
                           {visibleRepertoire.map((item) => (
                             <TableRow key={item.id} className="hover:bg-muted/20 transition-colors" data-testid={`row-repertoire-${item.id}`}>
                               <TableCell className="font-semibold text-primary">{item.composerName}</TableCell>
-                              <TableCell className="font-serif italic">{item.pieceTitle}</TableCell>
+                              <TableCell className="font-medium">{item.pieceTitle}</TableCell>
                               <TableCell className="text-muted-foreground text-xs">{item.movementName || '—'}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className={`font-medium border shadow-none ${getStatusColor(item.status)}`}>
@@ -290,7 +295,7 @@ export default function UserProfilePage() {
                   Send Connection Request
                 </Button>
               ) : connectionStatus?.status === "pending_sent" ? (
-                <p className="text-muted-foreground italic">Connection request sent. Waiting for a response.</p>
+                <p className="text-muted-foreground">Connection request sent. Waiting for a response.</p>
               ) : connectionStatus?.status === "pending_received" ? (
                 <div className="flex gap-3 justify-center">
                   <Button

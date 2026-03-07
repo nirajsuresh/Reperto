@@ -1,33 +1,34 @@
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  ArrowLeft, Star, ExternalLink, Users, Music2, Clock, Hash,
-  Youtube, ChevronRight, MessageSquare, ThumbsUp, Play, ArrowUpRight,
-  BookOpen, Layers, Zap, Eye, PlusCircle, Video, UserCircle2,
+  ArrowLeft, Star, ExternalLink, Users, Music2, Clock,
+  Youtube, ChevronRight, MessageSquare, ThumbsUp, Play,
+  BookOpen, Layers, Zap, PlusCircle, Video, UserCircle2, Award,
 } from "lucide-react";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useState, useMemo } from "react";
+import { BADGE_TILE_BG_COLOR, getPieceBadge, TIER_TEXT_COLOR, TIER_LABEL } from "@/lib/badges";
 import { Link, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { getStatusColor, getStatusDotColor } from "@/lib/status-colors";
+import { getStatusColor, getStatusDotColor, STATUSES } from "@/lib/status-colors";
+import { ACTIVITY, TAG_BADGE, RATING } from "@/lib/palette";
 import { formatDistanceToNow } from "date-fns";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Constants / lookup data
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ALL_STATUSES = ["Want to learn", "Up next", "Learning", "Refining", "Maintaining", "Performance Ready", "Shelved"];
+const ALL_STATUSES = [...STATUSES];
 
 type DiscussionTag = "General" | "Tips & Technique" | "Interpretation" | "Help";
 const TAG_COLOR: Record<DiscussionTag, string> = {
-  General:            "bg-slate-100 text-slate-700",
-  "Tips & Technique": "bg-blue-100 text-blue-700",
-  Interpretation:     "bg-violet-100 text-violet-700",
-  Help:               "bg-amber-100 text-amber-700",
+  General:            TAG_BADGE.General,
+  "Tips & Technique": TAG_BADGE["Tips & Technique"],
+  Interpretation:     TAG_BADGE.Interpretation,
+  Help:               TAG_BADGE.Help,
 };
 const DISCUSSION_TABS: (DiscussionTag | "All")[] = ["All", "Tips & Technique", "Interpretation", "Help", "General"];
 
@@ -42,17 +43,17 @@ const MOCK_THREADS: { votes: number; title: string; tag: DiscussionTag; author: 
 
 type ActivityType = "status" | "added" | "milestone" | "recording";
 const ACTIVITY_CFG: Record<ActivityType, { icon: typeof Play; border: string; iconBg: string; iconColor: string }> = {
-  status:    { icon: Star,       border: "border-l-rose-400",   iconBg: "bg-rose-100",   iconColor: "text-rose-600" },
-  added:     { icon: PlusCircle, border: "border-l-blue-400",   iconBg: "bg-blue-100",   iconColor: "text-blue-600" },
-  milestone: { icon: Zap,        border: "border-l-amber-400",  iconBg: "bg-amber-100",  iconColor: "text-amber-600" },
-  recording: { icon: Video,      border: "border-l-purple-400", iconBg: "bg-purple-100", iconColor: "text-purple-600" },
+  status:    { icon: Star,       ...ACTIVITY.status },
+  added:     { icon: PlusCircle, ...ACTIVITY.added },
+  milestone: { icon: Zap,        ...ACTIVITY.milestone },
+  recording: { icon: Video,      ...ACTIVITY.recording },
 };
 const MOCK_ACTIVITY: { type: ActivityType; displayName: string; text: string; timeAgo: string }[] = [
-  { type: "status",    displayName: "Sarah K.",  text: "moved this piece to Performance Ready", timeAgo: "2h ago" },
+  { type: "status",    displayName: "Sarah K.",  text: "moved this piece to Maintaining", timeAgo: "2h ago" },
   { type: "added",     displayName: "Marcus T.", text: "added this piece to their repertoire",  timeAgo: "5h ago" },
   { type: "recording", displayName: "Yuki N.",   text: "shared a recording",                    timeAgo: "8h ago" },
   { type: "milestone", displayName: "Alex M.",   text: "logged 50 hours on this piece",         timeAgo: "1d ago" },
-  { type: "status",    displayName: "Emma L.",   text: "moved this piece to Refining",          timeAgo: "2d ago" },
+  { type: "status",    displayName: "Emma L.",   text: "moved this piece to In Progress",          timeAgo: "2d ago" },
   { type: "added",     displayName: "David W.",  text: "added this piece to their repertoire",  timeAgo: "3d ago" },
   { type: "recording", displayName: "Priya R.",  text: "shared a recording",                    timeAgo: "4d ago" },
   { type: "status",    displayName: "Thomas H.", text: "moved this piece to Maintaining",       timeAgo: "5d ago" },
@@ -75,13 +76,17 @@ function getDifficultyDimensions(d?: string | null) {
 function StarRating({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(s => (
-        <Star key={s} className={cn("w-4 h-4",
-          s <= Math.round(rating) ? "fill-amber-400 text-amber-400" :
-          s - 0.5 <= rating       ? "fill-amber-400/50 text-amber-400" :
-                                    "text-muted-foreground/30"
-        )} />
-      ))}
+      {[1, 2, 3, 4, 5].map(s => {
+        const filled = s <= Math.round(rating);
+        const half = !filled && s - 0.5 <= rating;
+        return (
+          <Star
+            key={s}
+            className={cn("w-4 h-4", !filled && !half && "text-muted-foreground/30")}
+            style={filled ? { color: RATING.filled, fill: RATING.filled } : half ? { color: RATING.filledHalf, fill: RATING.filledHalf } : undefined}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -100,8 +105,8 @@ function InteractiveStarRating({ rating, onRate }: { rating: number; onRate: (v:
             onClick={e => { const left = e.clientX - e.currentTarget.getBoundingClientRect().left < e.currentTarget.getBoundingClientRect().width / 2; onRate(left ? s - 0.5 : s); }}
           >
             <Star className="absolute inset-0 w-6 h-6 text-muted-foreground/30" />
-            {filled && <Star className="absolute inset-0 w-6 h-6 fill-amber-400 text-amber-400" />}
-            {half   && <div className="absolute inset-0 overflow-hidden w-[50%]"><Star className="w-6 h-6 fill-amber-400 text-amber-400" /></div>}
+            {filled && <Star className="absolute inset-0 w-6 h-6" style={{ fill: RATING.filled, color: RATING.filled }} />}
+            {half   && <div className="absolute inset-0 overflow-hidden w-[50%]"><Star className="w-6 h-6" style={{ fill: RATING.filledHalf, color: RATING.filledHalf }} /></div>}
           </div>
         );
       })}
@@ -160,8 +165,8 @@ function StatusBar({ status, count, max }: { status: string; count: number; max:
 
 function Chip({ icon: Icon, label }: { icon: typeof Music2; label: string }) {
   return (
-    <span className="flex items-center gap-1.5 text-stone-300 text-xs">
-      <Icon className="w-3 h-3 text-stone-400" />
+    <span className="flex items-center gap-1.5 text-primary-foreground/75 text-xs">
+      <Icon className="w-3 h-3 text-primary-foreground/60" />
       {label}
     </span>
   );
@@ -174,7 +179,7 @@ function YtSearchCard({ label, sublabel, query, gradient }: { label: string; sub
       <div className={cn("relative rounded-lg overflow-hidden mb-2 aspect-video flex items-center justify-center", gradient)}>
         <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
         <div className="relative w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-          <Play className="w-4 h-4 text-stone-900 ml-0.5" fill="currentColor" />
+          <Play className="w-4 h-4 text-primary ml-0.5" fill="currentColor" />
         </div>
         <span className="absolute top-2 left-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-black/40 text-white">YouTube</span>
       </div>
@@ -192,9 +197,10 @@ const currentUserId = () => localStorage.getItem("userId") || "";
 
 export default function PieceDetailPage() {
   const params = useParams<{ id: string }>();
-  const pieceId = params.id ? parseInt(params.id) : 0;
+  const pieceId = params.id ? parseInt(params.id, 10) : 0;
+  const isValidPieceId = Number.isInteger(pieceId) && pieceId > 0;
 
-  const [status, setStatus]           = useState("Learning");
+  const [status, setStatus]           = useState("In Progress");
   const [userRating, setUserRating]   = useState(0);
   const [activeTab, setActiveTab]     = useState<"All" | DiscussionTag>("All");
 
@@ -244,6 +250,19 @@ export default function PieceDetailPage() {
     queryFn: async () => { const r = await fetch(`/api/pieces/${pieceId}/related`); if (!r.ok) return []; const d = await r.json(); return Array.isArray(d) ? d : []; },
     enabled: !!pieceId,
   });
+  const myUserId = currentUserId();
+  // find current user's repertoire entry (for currentCycle and id)
+  const { data: myRepertoire = [] } = useQuery<any[]>({
+    queryKey: [`/api/repertoire/${myUserId}`],
+    queryFn: async () => {
+      const r = await fetch(`/api/repertoire/${myUserId}`);
+      if (!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d) ? d : (d?.entries ?? []);
+    },
+    enabled: !!myUserId,
+  });
+  const myEntry = useMemo(() => myRepertoire.find((e: any) => e.pieceId === pieceId), [myRepertoire, pieceId]);
 
   // ── derived ──
   const distributionMap = useMemo(() => {
@@ -254,8 +273,8 @@ export default function PieceDetailPage() {
 
   // boost counts for visual demo when real data is sparse
   const DEMO_COUNTS: Record<string, number> = {
-    "Want to learn": 89, "Up next": 42, "Learning": 147,
-    "Refining": 68, "Maintaining": 31, "Performance Ready": 34, "Shelved": 23,
+    "Want to learn": 89, "Up next": 42, "In Progress": 147,
+    "Maintaining": 65, "Resting": 23,
   };
   const distributionData = useMemo(() => {
     const hasReal = rawDistribution.some((r: any) => r.count > 0);
@@ -265,9 +284,8 @@ export default function PieceDetailPage() {
     }));
   }, [distributionMap, rawDistribution]);
 
-  const totalLearners  = distributionData.reduce((s, d) => s + d.count, 0);
-  const totalCompleted = (distributionData.find(d => d.status === "Performance Ready")?.count ?? 0)
-                       + (distributionData.find(d => d.status === "Maintaining")?.count ?? 0);
+  const totalLearners = distributionData.reduce((s, d) => s + d.count, 0);
+  const totalMaintaining = (distributionData.find(d => d.status === "Maintaining")?.count ?? 0);
   const topStatus = distributionData.slice().sort((a, b) => b.count - a.count)[0]?.status ?? "—";
   const maxCount = Math.max(...distributionData.map(d => d.count), 1);
 
@@ -283,25 +301,40 @@ export default function PieceDetailPage() {
   const composerLastName = composerData?.name?.split(" ").slice(-1)[0] ?? "";
   const pieceShortTitle = pieceData?.title?.split(",")[0] ?? "this piece";
 
+  if (!isValidPieceId) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-8">
+          <p className="text-muted-foreground mb-4">Piece not found.</p>
+          <Link href="/profile">
+            <Button variant="outline">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to profile
+            </Button>
+          </Link>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="min-h-screen bg-background">
 
         {/* ── HERO ──────────────────────────────────────────────── */}
-        <div className="bg-stone-900 text-stone-100">
-          <div className="container mx-auto px-4 max-w-5xl pt-6 pb-10">
+        <div className="bg-black text-primary-foreground">
+          <div className="container mx-auto px-4 xl:px-8 max-w-[1620px] pt-6 pb-10">
             {/* Breadcrumb */}
             <div className="flex items-center gap-2 mb-5">
               <Link href="/profile">
-                <Button variant="ghost" size="sm" className="text-stone-400 hover:text-white hover:bg-stone-800 -ml-2 group">
+                <Button variant="ghost" size="sm" className="text-primary-foreground/65 hover:text-primary-foreground hover:bg-primary-foreground/10 -ml-2 group">
                   <ArrowLeft className="w-4 h-4 mr-1.5 transition-transform group-hover:-translate-x-1" /> Back
                 </Button>
               </Link>
               {composerData && (
                 <>
-                  <span className="text-stone-600">/</span>
+                  <span className="text-primary-foreground/40">/</span>
                   <Link href={`/composer/${composerData.id}`}>
-                    <span className="text-stone-400 hover:text-white text-sm transition-colors cursor-pointer">{composerData.name}</span>
+                    <span className="text-primary-foreground/65 hover:text-primary-foreground text-sm transition-colors cursor-pointer">{composerData.name}</span>
                   </Link>
                 </>
               )}
@@ -311,7 +344,7 @@ export default function PieceDetailPage() {
               <div className="flex-1 min-w-0">
                 {/* Era badge */}
                 {composerData?.birthYear && (
-                  <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 mb-3 inline-block">
+                  <span className={cn("text-xs font-semibold px-2.5 py-0.5 rounded-full mb-3 inline-block", ACTIVITY.status.iconBg, ACTIVITY.status.iconColor)}>
                     {composerData.birthYear < 1750 ? "Baroque" : composerData.birthYear < 1820 ? "Classical" : composerData.birthYear < 1900 ? "Romantic" : "Modern"}
                   </span>
                 )}
@@ -326,7 +359,7 @@ export default function PieceDetailPage() {
                   {pieceData?.keySignature && <Chip icon={Layers} label={pieceData.keySignature} />}
                   {pieceData?.yearComposed && <Chip icon={Clock} label={String(pieceData.yearComposed)} />}
                   {pieceData?.difficulty && (
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-700 text-stone-200">
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary-foreground/15 text-primary-foreground/90">
                       {pieceData.difficulty}
                     </span>
                   )}
@@ -336,19 +369,19 @@ export default function PieceDetailPage() {
                 <div className="flex flex-wrap items-center gap-4 mb-5">
                   <div className="flex items-center gap-2">
                     <StarRating rating={ratingSummary?.averageRating ?? 0} />
-                    <span className="text-stone-300 text-sm font-semibold">{ratingSummary?.averageRating ? ratingSummary.averageRating.toFixed(1) : "—"}</span>
-                    <span className="text-stone-500 text-xs">({ratingSummary?.totalRatings ? ratingSummary.totalRatings * 57 : 0} ratings)</span>
+                    <span className="text-primary-foreground/85 text-sm font-semibold">{ratingSummary?.averageRating ? ratingSummary.averageRating.toFixed(1) : "—"}</span>
+                    <span className="text-primary-foreground/50 text-xs">({ratingSummary?.totalRatings ? ratingSummary.totalRatings * 57 : 0} ratings)</span>
                   </div>
-                  <span className="text-stone-600">·</span>
-                  <span className="text-stone-400 text-sm"><span className="font-semibold text-stone-200">{totalLearners}</span> learning</span>
-                  <span className="text-stone-600">·</span>
-                  <span className="text-stone-400 text-sm"><span className="font-semibold text-stone-200">{totalCompleted}</span> completed</span>
+                  <span className="text-primary-foreground/40">·</span>
+                  <span className="text-primary-foreground/65 text-sm"><span className="font-semibold text-primary-foreground">{totalLearners}</span> learning</span>
+                  <span className="text-primary-foreground/40">·</span>
+                  <span className="text-primary-foreground/65 text-sm"><span className="font-semibold text-primary-foreground">{totalMaintaining}</span> maintaining</span>
                 </div>
 
                 {/* CTAs */}
                 <div className="flex flex-wrap items-center gap-3">
                   <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className={cn("h-9 w-44 font-medium text-sm border-stone-600 bg-stone-800 text-stone-100", getStatusColor(status))}>
+                    <SelectTrigger className={cn("h-9 w-44 font-medium text-sm border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground", getStatusColor(status))}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -357,14 +390,14 @@ export default function PieceDetailPage() {
                   </Select>
                   {pieceData?.imslpUrl && (
                     <a href={pieceData.imslpUrl} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline" className="border-stone-500 text-stone-200 hover:bg-stone-800 gap-2">
+                      <Button size="sm" variant="outline" className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 gap-2">
                         <ExternalLink className="w-3.5 h-3.5" /> View Score (IMSLP)
                       </Button>
                     </a>
                   )}
                   {!pieceData?.imslpUrl && (
                     <a href={`https://imslp.org/wiki/Special:Search/${encodeURIComponent((pieceData?.title ?? "") + " " + (composerData?.name ?? ""))}`} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline" className="border-stone-500 text-stone-200 hover:bg-stone-800 gap-2">
+                      <Button size="sm" variant="outline" className="border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10 gap-2">
                         <ExternalLink className="w-3.5 h-3.5" /> Find Score on IMSLP
                       </Button>
                     </a>
@@ -377,7 +410,7 @@ export default function PieceDetailPage() {
 
         {/* ── ACTIVITY STRIP ────────────────────────────────────── */}
         <div className="border-b border-border bg-card">
-          <div className="container mx-auto px-4 max-w-5xl py-4">
+          <div className="container mx-auto px-4 xl:px-8 max-w-[1620px] py-4">
             <div className="flex items-center gap-2 mb-3">
               <Clock className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Community activity</span>
@@ -411,7 +444,7 @@ export default function PieceDetailPage() {
         </div>
 
         {/* ── BODY ─────────────────────────────────────────────── */}
-        <div className="container mx-auto px-4 max-w-5xl py-8">
+        <div className="container mx-auto px-4 xl:px-8 max-w-[1620px] py-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
             {/* ── MAIN (2/3) ────────────────────────────────── */}
@@ -419,25 +452,71 @@ export default function PieceDetailPage() {
 
               {/* Analytics dashboard */}
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Community overview</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { value: totalLearners,  label: "Total learners",  icon: Users,     color: "text-blue-600",   bg: "bg-blue-50" },
-                    { value: ratingSummary?.averageRating ? ratingSummary.averageRating.toFixed(1) : "—", label: "Avg rating", icon: Star, color: "text-amber-600", bg: "bg-amber-50" },
-                    { value: totalCompleted, label: "Completed",       icon: BookOpen,  color: "text-green-600",  bg: "bg-green-50" },
-                    { value: topStatus,      label: "Top stage",       icon: Zap,       color: "text-violet-600", bg: "bg-violet-50" },
-                  ].map(({ value, label, icon: Icon, color, bg }) => (
-                    <Card key={label} className="border-none shadow-sm">
-                      <CardContent className="p-4 flex flex-col gap-2">
-                        <div className={cn("w-7 h-7 rounded-lg flex items-center justify-center", bg)}>
-                          <Icon className={cn("w-3.5 h-3.5", color)} />
+                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                  <Zap className="w-3.5 h-3.5" /> Learning analytics
+                </h2>
+                <Card className="border-none shadow-sm">
+                  <CardContent className="p-5">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-0 items-center">
+                      {/* Donut chart */}
+                      <div className="flex flex-col items-center">
+                        <ResponsiveContainer width="100%" height={160}>
+                          <PieChart>
+                            <Pie data={distributionData} dataKey="count" nameKey="status" cx="50%" cy="50%"
+                              innerRadius={42} outerRadius={68} paddingAngle={2}>
+                              {distributionData.map(({ status: s }) => (
+                                <Cell key={s} fill={getStatusDotColor(s)} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(v: number, name: string) => [`${v} learners`, name]}
+                              contentStyle={{ fontSize: 11, padding: "4px 8px" }}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <p className="text-center text-xs text-muted-foreground -mt-2">
+                          <span className="font-bold text-foreground text-lg">{totalLearners}</span> learning
+                        </p>
+                      </div>
+                      {/* KPI column */}
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-2xl font-bold tabular-nums leading-none">{totalMaintaining}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">in Maintaining</p>
+                          <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full rounded-full transition-all"
+                              style={{ width: totalLearners > 0 ? `${Math.round((totalMaintaining / totalLearners) * 100)}%` : "0%", backgroundColor: getStatusDotColor("Maintaining") }} />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                            {totalLearners > 0 ? `${Math.round((totalMaintaining / totalLearners) * 100)}% in maintaining` : "0% in maintaining"}
+                          </p>
                         </div>
-                        <span className="text-2xl font-bold tabular-nums leading-none">{value}</span>
-                        <span className="text-xs text-muted-foreground">{label}</span>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        <div className="border-t border-border pt-4">
+                          <p className="text-sm font-semibold">{topStatus}</p>
+                          <p className="text-xs text-muted-foreground">most common stage</p>
+                        </div>
+                        <div className="border-t border-border pt-4">
+                          <div className="flex items-center gap-1.5">
+                            <StarRating rating={ratingSummary?.averageRating ?? 0} />
+                            <span className="text-sm font-bold">{ratingSummary?.averageRating ? ratingSummary.averageRating.toFixed(1) : "—"}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {ratingSummary?.totalRatings ? `${ratingSummary.totalRatings * 57} ratings` : "no ratings yet"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Legend strip */}
+                    <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-4 pt-4 border-t border-border">
+                      {distributionData.filter(d => d.count > 0).map(({ status: s, count }) => (
+                        <span key={s} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: getStatusDotColor(s) }} />
+                          {s} <span className="font-semibold text-foreground">{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               {/* Status distribution */}
@@ -493,12 +572,12 @@ export default function PieceDetailPage() {
                         {[100, 90, 95, 85].map((w, i) => (
                           <div key={i} className="h-4 bg-muted/60 rounded animate-pulse" style={{ width: `${w}%` }} />
                         ))}
-                        <p className="text-xs text-muted-foreground italic pt-1">Generating summary…</p>
+                        <p className="text-xs text-muted-foreground pt-1">Generating summary…</p>
                       </div>
                     ) : analysisData?.analysis ? (
                       <p className="text-sm text-muted-foreground leading-relaxed">{analysisData.analysis}</p>
                     ) : (
-                      <p className="text-sm text-muted-foreground italic">No analysis available yet.</p>
+                      <p className="text-sm text-muted-foreground">No analysis available yet.</p>
                     )}
                   </CardContent>
                 </Card>
@@ -590,6 +669,21 @@ export default function PieceDetailPage() {
                         {ALL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {/* Progress bar for In Progress */}
+                    {status === "In Progress" && myEntry && (
+                      <div className="mt-3">
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>Progress</span>
+                          <span>{myEntry.progress ?? 0}%</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{ width: `${myEntry.progress ?? 0}%`, backgroundColor: getStatusDotColor("In Progress") }}
+                          />
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -613,6 +707,31 @@ export default function PieceDetailPage() {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Badge callout */}
+              {pieceData?.title && getPieceBadge(pieceData.title) && (() => {
+                const pb = getPieceBadge(pieceData.title)!;
+                return (
+                  <div>
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
+                      <Award className="w-3.5 h-3.5" /> Unlock a badge
+                    </h2>
+                    <div
+                      style={{ backgroundColor: BADGE_TILE_BG_COLOR[pb.tier] }}
+                      className="rounded-2xl overflow-hidden shadow-md flex items-center gap-4 p-4"
+                    >
+                      <div className="shrink-0 w-14 h-14 rounded-xl bg-black/20 flex items-center justify-center">
+                        <span className="text-[2rem] leading-none">{pb.icon}</span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-sm" style={{ color: TIER_TEXT_COLOR[pb.tier] }}>{pb.name}</p>
+                        <p className="text-[10px] uppercase tracking-widest font-semibold mt-0.5" style={{ color: TIER_TEXT_COLOR[pb.tier] }}>{TIER_LABEL[pb.tier]}</p>
+                        <p className="text-xs mt-1" style={{ color: TIER_TEXT_COLOR[pb.tier] }}>Reach Maintaining to earn this</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Difficulty breakdown */}
               {diffDimensions && (
@@ -696,52 +815,21 @@ export default function PieceDetailPage() {
                     label="Top performance"
                     sublabel={`${composerLastName} — ${pieceShortTitle}`}
                     query={`${pieceData?.title ?? ""} ${composerData?.name ?? ""} piano`}
-                    gradient="bg-gradient-to-br from-stone-700 to-stone-900"
+                    gradient="bg-gradient-to-br from-primary/70 to-primary"
                   />
                   <YtSearchCard
                     label="Tutorial & analysis"
                     sublabel="Piano lesson / breakdown"
                     query={`${pieceData?.title ?? ""} ${composerLastName} piano tutorial`}
-                    gradient="bg-gradient-to-br from-slate-700 to-slate-900"
+                    gradient="bg-gradient-to-br from-primary/85 to-primary"
                   />
                   <YtSearchCard
                     label="Score video"
                     sublabel="Sheet music with playthrough"
                     query={`${pieceData?.title ?? ""} ${composerLastName} piano score sheet music`}
-                    gradient="bg-gradient-to-br from-zinc-700 to-zinc-900"
+                    gradient="bg-gradient-to-br from-destructive/75 to-primary"
                   />
                 </div>
-              </div>
-
-              {/* Reddit */}
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
-                  <Hash className="w-3.5 h-3.5" /> Discussions
-                </h2>
-                <Card className="border-none shadow-sm">
-                  <CardContent className="p-4 space-y-4">
-                    {[
-                      { sub: "r/piano",         title: `Best recordings of ${pieceShortTitle}?`,                     votes: 412, comments: 67 },
-                      { sub: "r/piano",         title: `Tips for learning ${pieceShortTitle} — how did you approach it?`, votes: 289, comments: 41 },
-                      { sub: "r/classicalmusic", title: `${composerLastName}'s ${pieceShortTitle} — what makes it great`, votes: 198, comments: 28 },
-                    ].map((post, i) => (
-                      <a key={i}
-                        href={`https://www.reddit.com/search/?q=${encodeURIComponent((pieceData?.title ?? "") + " " + composerLastName)}`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="block group"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-[10px] font-semibold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-full">{post.sub}</span>
-                            <p className="text-xs font-medium mt-1 leading-snug group-hover:text-primary transition-colors line-clamp-2">{post.title}</p>
-                            <p className="text-[10px] text-muted-foreground mt-1">↑ {post.votes} · {post.comments} comments</p>
-                          </div>
-                          <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1 group-hover:text-primary transition-colors" />
-                        </div>
-                      </a>
-                    ))}
-                  </CardContent>
-                </Card>
               </div>
 
             </div>

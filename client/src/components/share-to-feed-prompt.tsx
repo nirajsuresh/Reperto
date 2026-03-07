@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { BRAND } from "@/lib/palette";
 
 export interface ShareToFeedPromptProps {
   open: boolean;
@@ -91,7 +92,7 @@ export function ShareToFeedPrompt({
           <p className="text-sm text-muted-foreground">
             <span className="font-medium text-foreground">{actionText}</span>
             {" — "}
-            <span className="font-serif italic">{pieceTitle}</span>
+            <span className="font-medium">{pieceTitle}</span>
             {movementName && (
               <span className="text-muted-foreground">, {movementName}</span>
             )}
@@ -116,7 +117,10 @@ export function ShareToFeedPrompt({
             size="sm"
             onClick={handlePost}
             disabled={isPosting}
-            className="bg-[#d4967c] hover:bg-[#c47a5a] text-white"
+            className="text-white"
+            style={{ backgroundColor: BRAND.primary }}
+            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = BRAND.primaryHover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = BRAND.primary; }}
           >
             <Send className="w-3.5 h-3.5 mr-1.5" />
             {isPosting ? "Posting…" : "Post"}

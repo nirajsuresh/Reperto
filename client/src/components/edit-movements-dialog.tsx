@@ -72,7 +72,7 @@ export function EditMovementsDialog({
       );
       const wholePieceEntries = currentEntries.filter((e) => e.movementId === null);
 
-      const toAdd = [...selected].filter((id) => !currentMovIds.has(id));
+      const toAdd = Array.from(selected).filter((id) => !currentMovIds.has(id));
       const toRemove = currentEntries.filter(
         (e) => e.movementId !== null && !selected.has(e.movementId!)
       );

@@ -235,11 +235,9 @@ function RepertoireSetupRow({
           <SelectContent>
             <SelectItem value="Want to learn">Want to learn</SelectItem>
             <SelectItem value="Up next">Up next</SelectItem>
-            <SelectItem value="Learning">Learning</SelectItem>
-            <SelectItem value="Refining">Refining</SelectItem>
+            <SelectItem value="In Progress">In Progress</SelectItem>
             <SelectItem value="Maintaining">Maintaining</SelectItem>
-            <SelectItem value="Performance Ready">Performance Ready</SelectItem>
-            <SelectItem value="Shelved">Shelved</SelectItem>
+            <SelectItem value="Resting">Resting</SelectItem>
           </SelectContent>
         </Select>
       </TableCell>
@@ -280,12 +278,12 @@ export default function ProfileSetup() {
   const totalSteps = 3;
 
   const [repertoire, setRepertoire] = useState<RepertoireRow[]>([
-    { id: "1", composerId: "", pieceId: "", movementIds: "", status: "Learning", dateStarted: "" }
+    { id: "1", composerId: "", pieceId: "", movementIds: "", status: "In Progress", dateStarted: "" }
   ]);
   const [autoFilledRows, setAutoFilledRows] = useState<Set<string>>(new Set());
 
   const addRow = () => {
-    setRepertoire([...repertoire, { id: Math.random().toString(36).substr(2, 9), composerId: "", pieceId: "", movementIds: "", status: "Learning", dateStarted: "" }]);
+    setRepertoire([...repertoire, { id: Math.random().toString(36).substr(2, 9), composerId: "", pieceId: "", movementIds: "", status: "In Progress", dateStarted: "" }]);
   };
 
   const removeRow = (id: string) => {
@@ -473,7 +471,7 @@ export default function ProfileSetup() {
                       const targetId = emptyRow?.id ?? Math.random().toString(36).substr(2, 9);
                       setAutoFilledRows(prev => new Set(prev).add(targetId));
                       if (!emptyRow) {
-                        setRepertoire(prev => [...prev, { id: targetId, composerId: result.composerId.toString(), pieceId: result.pieceId.toString(), movementIds: result.movementId ? result.movementId.toString() : "", status: "Learning", dateStarted: "" }]);
+                        setRepertoire(prev => [...prev, { id: targetId, composerId: result.composerId.toString(), pieceId: result.pieceId.toString(), movementIds: result.movementId ? result.movementId.toString() : "", status: "In Progress", dateStarted: "" }]);
                       } else {
                         setRepertoire(prev => prev.map(r => r.id === targetId ? { ...r, composerId: result.composerId.toString(), pieceId: result.pieceId.toString(), movementIds: result.movementId ? result.movementId.toString() : "" } : r));
                       }

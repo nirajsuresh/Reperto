@@ -11,6 +11,20 @@ interface LibraryComposer {
 export async function autoSeedIfEmpty() {
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
   await db.execute(sql`CREATE EXTENSION IF NOT EXISTS unaccent`);
+  try {
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_composers_name_unaccent_trgm ON composers USING gin (unaccent(name) gin_trgm_ops)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pieces_title_unaccent_trgm ON pieces USING gin (unaccent(title) gin_trgm_ops)`);
+    await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_movements_name_unaccent_trgm ON movements USING gin (unaccent(name) gin_trgm_ops)`);
+  } catch (err: any) {
+    if (err?.code === "42P17" || String(err?.message || "").includes("IMMUTABLE")) {
+      console.warn("Unaccent trigram indexes skipped (unaccent not immutable in this PostgreSQL setup). Using plain trigram indexes.");
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_composers_name_unaccent_trgm ON composers USING gin (name gin_trgm_ops)`).catch(() => {});
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_pieces_title_unaccent_trgm ON pieces USING gin (title gin_trgm_ops)`).catch(() => {});
+      await db.execute(sql`CREATE INDEX IF NOT EXISTS idx_movements_name_unaccent_trgm ON movements USING gin (name gin_trgm_ops)`).catch(() => {});
+    } else {
+      throw err;
+    }
+  }
   const existingComposers = await db.select().from(composers).limit(1);
 
   if (existingComposers.length > 0) {

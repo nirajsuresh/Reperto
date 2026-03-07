@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BRAND } from "@/lib/palette";
 
 export function Navbar() {
   const [location, setLocation] = useLocation();
@@ -48,14 +49,14 @@ export function Navbar() {
 
   return (
     <nav className={cn(
-      "w-full py-6 px-4 md:px-8 flex justify-between items-center z-50 transition-all duration-300",
-      isLanding ? "absolute top-0 left-0 bg-transparent text-white" : "bg-background/80 backdrop-blur-md border-b sticky top-0"
+      "w-full py-5 px-4 md:px-8 xl:px-10 flex justify-between items-center z-50 transition-all duration-300",
+      isLanding ? "absolute top-0 left-0 bg-transparent text-white" : "bg-[#fdedda] text-foreground backdrop-blur-md border-b border-border sticky top-0"
     )}>
       <div className="flex items-center gap-8 flex-1">
         <Link href="/">
           <div className="flex items-center cursor-pointer group">
             <img 
-              src="/images/logo.png" 
+              src="/images/Logo.png" 
               alt="Réperto Logo" 
               className="h-[4.5rem] w-auto transition-all group-hover:opacity-80"
             />
@@ -78,30 +79,30 @@ export function Navbar() {
       <div className="flex items-center gap-6">
         {isLoggedIn ? (
           <>
-            <Link href="/feed">
-              <Button 
-                variant="ghost" 
+            <Link href="/communities">
+              <Button
+                variant="ghost"
                 className={cn(
-                  "text-base font-medium hover:bg-white/10",
+                  "text-base font-semibold hover:bg-white/10",
                   isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
                 )}
                 data-testid="link-home"
               >
-                Feed
+                Communities
               </Button>
             </Link>
             <Link href="/connections">
               <Button 
                 variant="ghost" 
                 className={cn(
-                  "text-base font-medium hover:bg-white/10 relative",
+                  "text-base font-semibold hover:bg-white/10 relative",
                   isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
                 )}
                 data-testid="link-connections"
               >
                 Connections
                 {pendingReceived.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#d4967c] text-white text-xs w-5 h-5 rounded-full flex items-center justify-center" data-testid="badge-pending-count">
+                  <span className="absolute -top-1 -right-1 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: BRAND.primary }} data-testid="badge-pending-count">
                     {pendingReceived.length}
                   </span>
                 )}
@@ -111,7 +112,7 @@ export function Navbar() {
               <Button 
                 variant="ghost" 
                 className={cn(
-                  "text-base font-medium hover:bg-white/10",
+                  "text-base font-semibold hover:bg-white/10",
                   isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
                 )}
                 data-testid="link-profile"
@@ -123,7 +124,7 @@ export function Navbar() {
               variant="ghost" 
               onClick={handleLogout}
               className={cn(
-                "text-base font-medium hover:bg-white/10",
+                "text-base font-semibold hover:bg-white/10",
                 isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
               )}
               data-testid="button-logout"
@@ -135,7 +136,7 @@ export function Navbar() {
           <>
             <Link href="/auth">
               <Button variant="ghost" className={cn(
-                "text-base font-medium hover:bg-white/10",
+                "text-base font-semibold hover:bg-white/10",
                 isLanding ? "text-white hover:text-white" : "text-foreground hover:bg-black/5"
               )}>
                 Log In
@@ -143,7 +144,7 @@ export function Navbar() {
             </Link>
             <Link href="/auth?tab=register">
               <Button className={cn(
-                "rounded-full px-6 font-medium transition-all shadow-none",
+                "rounded-full px-6 font-semibold transition-all shadow-none",
                 isLanding 
                   ? "bg-white text-black hover:bg-white/90" 
                   : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -161,7 +162,7 @@ export function Navbar() {
 export function Footer() {
   return (
     <footer className="bg-primary text-primary-foreground py-16 px-4 md:px-8">
-      <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
+      <div className="max-w-[1700px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12">
         <div className="col-span-1 md:col-span-2">
           <h2 className="font-serif text-3xl font-bold mb-4">Réperto</h2>
           <p className="text-primary-foreground/70 max-w-sm leading-relaxed">
@@ -173,13 +174,13 @@ export function Footer() {
         <div>
           <h3 className="font-sans font-semibold mb-4 tracking-wide text-sm uppercase opacity-70">Company</h3>
           <ul className="space-y-3">
-            <li><Link href="#" className="hover:text-[#d4967c] transition-colors">About Us</Link></li>
-            <li><Link href="#" className="hover:text-[#d4967c] transition-colors">Careers</Link></li>
-            <li><Link href="#" className="hover:text-[#d4967c] transition-colors">Contact</Link></li>
+            <li><Link href="#" className="hover:text-accent transition-colors">About Us</Link></li>
+            <li><Link href="#" className="hover:text-accent transition-colors">Careers</Link></li>
+            <li><Link href="#" className="hover:text-accent transition-colors">Contact</Link></li>
           </ul>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto mt-16 pt-8 border-t border-white/10 text-center md:text-left text-sm text-primary-foreground/50">
+      <div className="max-w-[1700px] mx-auto mt-16 pt-8 border-t border-white/10 text-center md:text-left text-sm text-primary-foreground/50">
         © 2024 Réperto. All rights reserved.
       </div>
     </footer>
